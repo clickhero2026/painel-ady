@@ -1,10 +1,16 @@
 import { BarraLateral } from "@/components/BarraLateral";
+import { contadoresDoMenu } from "@/lib/leads";
 import { navegacaoDoPapel, ROTULO_PAPEL } from "@/lib/papeis";
 import { exigirUsuario } from "@/lib/sessao";
 import { sair } from "./acoes";
 
 export default async function LayoutPainel({ children }: LayoutProps<"/">) {
   const usuario = await exigirUsuario();
+  // Contadores do menu (só os do papel). O layout é refeito a cada router.refresh().
+  const { semResponsavel, paraFechar } = await contadoresDoMenu(usuario.papel);
+  const contadores: Record<string, { valor: number; descricao: string }> = {};
+  if (semResponsavel !== undefined) contadores["/leads"] = { valor: semResponsavel, descricao: "sem responsável" };
+  if (paraFechar !== undefined) contadores["/leads?visao=para_fechar"] = { valor: paraFechar, descricao: "pendentes" };
 
   return (
     <div className="min-h-dvh lg:flex">
@@ -16,6 +22,7 @@ export default async function LayoutPainel({ children }: LayoutProps<"/">) {
       </a>
       <BarraLateral
         itens={navegacaoDoPapel(usuario.papel)}
+        contadores={contadores}
         nome={usuario.nome || usuario.email}
         papel={ROTULO_PAPEL[usuario.papel]}
         sair={sair}

@@ -7,7 +7,7 @@ import type { Papel } from "./papeis";
  * inválido é descartado (nunca vira erro nem entra no SQL cru).
  */
 
-export const VISOES = ["parados", "agendados_semana", "sem_reuniao", "sem_responsavel"] as const;
+export const VISOES = ["parados", "agendados_semana", "sem_reuniao", "sem_responsavel", "para_fechar"] as const;
 export type Visao = (typeof VISOES)[number];
 
 export const ROTULO_VISAO: Record<Visao, string> = {
@@ -15,9 +15,17 @@ export const ROTULO_VISAO: Record<Visao, string> = {
   agendados_semana: "Agendados esta semana",
   sem_reuniao: "Sem reunião marcada",
   sem_responsavel: "Sem responsável",
+  para_fechar: "Reuniões para fechar",
 };
 
-export const ORDENS = ["cadastro", "nome", "etapa", "criativo", "versao", "responsavel", "reuniao", "parado"] as const;
+/** Quem vê cada visão restrita (as demais: todos que veem leads). */
+export function podeVerVisao(visao: Visao, papel: Papel): boolean {
+  if (visao === "sem_responsavel") return papel === "admin";
+  if (visao === "para_fechar") return papel === "admin" || papel === "suporte";
+  return true;
+}
+
+export const ORDENS = ["cadastro", "nome", "etapa", "criativo", "versao", "responsavel", "reuniao", "parado", "agendamento"] as const;
 export type Ordem = (typeof ORDENS)[number];
 
 export const VERSOES = ["A", "B", "C", "D", "E", "F"] as const;
@@ -78,11 +86,13 @@ export function lerFiltros(entrada: Entrada, papel: Papel): FiltrosLeads {
     if (r.success) lido[chave] = r.data;
   }
   if (!podeFiltrarResponsavel(papel)) delete lido.responsavel;
-  if (lido.visao === "sem_responsavel" && papel !== "admin") delete lido.visao;
+  if (lido.visao && !podeVerVisao(lido.visao as Visao, papel)) delete lido.visao;
 
   const visao = lido.visao as Visao | undefined;
-  const ordemPadrao: Ordem = visao === "parados" ? "parado" : visao === "agendados_semana" ? "reuniao" : "cadastro";
-  const dirPadrao = visao === "parados" || visao === "agendados_semana" ? "asc" : "desc";
+  // "Sem responsável": cadastros mais recentes primeiro; "para fechar": agendamento mais antigo primeiro.
+  const ordemPadrao: Ordem =
+    visao === "parados" ? "parado" : visao === "agendados_semana" ? "reuniao" : visao === "para_fechar" ? "agendamento" : "cadastro";
+  const dirPadrao = visao === "parados" || visao === "agendados_semana" || visao === "para_fechar" ? "asc" : "desc";
   return {
     ...(lido as Partial<FiltrosLeads>),
     ordem: (lido.ordem as Ordem) ?? ordemPadrao,

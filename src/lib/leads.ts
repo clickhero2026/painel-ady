@@ -49,7 +49,14 @@ export function podeVerLeads(papel: Papel): boolean {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SEM_RESPONSAVEL = "(r.usuario_id IS NULL OR ru.ativo = false)";
+/**
+ * Responsável válido: usuário ativo com papel que pode ser responsável
+ * (vendas ou admin). Desativado ou com outro papel = "sem responsável".
+ */
+const RESPONSAVEL_VALIDO = "(ru.ativo AND ru.papel IN ('admin', 'vendas'))";
+const SEM_RESPONSAVEL = `(r.usuario_id IS NULL OR NOT ${RESPONSAVEL_VALIDO})`;
+/** Agendado e sem desfecho (realizada ou não compareceu). */
+const PARA_FECHAR = "i.status = 'agendado'";
 const PARADO_DESDE = "greatest(i.created_at, i.etapa2_concluida_em, i.ultima_retomada_em)";
 /** Semana corrente (segunda a domingo) no fuso de São Paulo. */
 const INICIO_SEMANA = "(date_trunc('week', now() AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo')";
@@ -64,6 +71,7 @@ export interface ItemLista {
   lp_variant: string | null;
   created_at: Date;
   reuniao_em: Date | null;
+  agendado_em: Date | null;
   parado_desde: Date;
   responsavel_nome: string | null;
 }
@@ -88,6 +96,7 @@ const ORDENACAO: Record<Ordem, string> = {
   responsavel: 'coalesce(ru.nome, ru.email) COLLATE "und-x-icu"',
   reuniao: "i.reuniao_em",
   parado: PARADO_DESDE,
+  agendamento: "i.agendado_em",
 };
 
 function escaparLike(texto: string): string {
@@ -129,6 +138,10 @@ function condicoes(usuario: QuemConsulta, f: FiltrosLeads, p: Parametros): strin
       if (usuario.papel !== "admin") throw new SemAcessoALeads();
       where.push(SEM_RESPONSAVEL);
       break;
+    case "para_fechar":
+      if (usuario.papel !== "admin" && usuario.papel !== "suporte") throw new SemAcessoALeads();
+      where.push(PARA_FECHAR);
+      break;
   }
   return where;
 }
@@ -151,9 +164,9 @@ export async function listarLeads(usuario: QuemConsulta, f: FiltrosLeads): Promi
 
   const direcao = f.dir === "asc" ? "ASC" : "DESC";
   const { rows } = await pool().query<ItemLista>(
-    `SELECT i.id, i.nome, i.status, i.utm_content, i.lp_variant, i.created_at, i.reuniao_em,
+    `SELECT i.id, i.nome, i.status, i.utm_content, i.lp_variant, i.created_at, i.reuniao_em, i.agendado_em,
             ${PARADO_DESDE} AS parado_desde,
-            CASE WHEN ru.ativo THEN coalesce(ru.nome, ru.email) END AS responsavel_nome
+            CASE WHEN ${RESPONSAVEL_VALIDO} THEN coalesce(ru.nome, ru.email) END AS responsavel_nome
        FROM ${ORIGEM}
       WHERE ${where}
       ORDER BY ${ORDENACAO[f.ordem]} ${direcao} NULLS LAST, i.created_at DESC, i.id
@@ -228,6 +241,7 @@ export interface Ficha {
   realizada_em: Date | null;
   status: string;
   ultima_retomada_em: Date | null;
+  responsavel_id: string | null;
   responsavel_nome: string | null;
 }
 
@@ -238,7 +252,8 @@ const COLUNAS_FICHA = `i.id, i.created_at, i.nome, i.email, i.whatsapp,
   i.experiencia_anuncios, i.acesso_redes, i.conta_anuncios, i.cartao_pagamento, i.arquivo_logo,
   i.reuniao_computador, i.observacoes, i.etapa2_concluida_em,
   i.agendado_em, i.reuniao_em, i.realizada_em, i.status, i.ultima_retomada_em,
-  CASE WHEN ru.ativo THEN coalesce(ru.nome, ru.email) END AS responsavel_nome`;
+  CASE WHEN ${RESPONSAVEL_VALIDO} THEN ru.id END AS responsavel_id,
+  CASE WHEN ${RESPONSAVEL_VALIDO} THEN coalesce(ru.nome, ru.email) END AS responsavel_nome`;
 
 /**
  * Ficha de um lead, ou null se ele não existe OU não é visível para
@@ -273,4 +288,27 @@ export async function linkDeAtivacao(usuario: QuemConsulta, id: string): Promise
   if (!token) return null;
   await registrarAuditoria({ usuarioId: usuario.id, acao: "copiar_link", leadId: id });
   return `${URL_ATIVAR_CONTA}?t=${encodeURIComponent(token)}`;
+}
+
+// ── Contadores do menu ──
+
+export interface ContadoresDoMenu {
+  /** Só admin: leads na fila "Sem responsável". */
+  semResponsavel?: number;
+  /** Só suporte e admin: agendados sem desfecho ("Reuniões para fechar"). */
+  paraFechar?: number;
+}
+
+export async function contadoresDoMenu(papel: Papel): Promise<ContadoresDoMenu> {
+  const contar = [papel === "admin" && "semResponsavel", (papel === "admin" || papel === "suporte") && "paraFechar"].filter(
+    Boolean,
+  ) as (keyof ContadoresDoMenu)[];
+  if (contar.length === 0) return {};
+  const { rows } = await pool().query<{ sem_responsavel: number; para_fechar: number }>(
+    `SELECT (count(*) FILTER (WHERE ${SEM_RESPONSAVEL}))::int AS sem_responsavel,
+            (count(*) FILTER (WHERE ${PARA_FECHAR}))::int AS para_fechar
+       FROM ${ORIGEM}`,
+  );
+  const r = rows[0];
+  return Object.fromEntries(contar.map((c) => [c, c === "semResponsavel" ? r.sem_responsavel : r.para_fechar]));
 }

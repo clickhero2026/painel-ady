@@ -207,11 +207,12 @@ test.describe("lista: filtros, ordem e paginação", () => {
 
   test("visões prontas", async ({ page }) => {
     await page.goto("/leads");
-    await page.getByRole("link", { name: "Cadastros parados" }).click();
+    const visoes = page.getByRole("navigation", { name: "Visões" });
+    await visoes.getByRole("link", { name: "Cadastros parados" }).click();
     await expect(page.getByRole("columnheader", { name: "Parado há" })).toBeVisible();
-    await page.getByRole("link", { name: "Sem responsável" }).click();
+    await visoes.getByRole("link", { name: "Sem responsável" }).click();
     await expect(page.getByText(`${leadsDe(null).length + leadsDe("inativo").length} leads em “Sem responsável”`)).toBeVisible();
-    await page.getByRole("link", { name: "Agendados esta semana" }).click();
+    await visoes.getByRole("link", { name: "Agendados esta semana" }).click();
     await expect(page.getByText("Sem dados de reunião ainda.")).toBeVisible();
   });
 });

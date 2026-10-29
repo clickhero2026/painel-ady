@@ -24,7 +24,7 @@ export function ehPapel(valor: unknown): valor is Papel {
 export interface ItemNavegacao {
   href: string;
   rotulo: string;
-  icone: "inicio" | "leads" | "funil" | "perfil" | "usuarios";
+  icone: "inicio" | "leads" | "reunioes" | "funil" | "perfil" | "usuarios";
   papeis: readonly Papel[];
 }
 
@@ -32,6 +32,7 @@ export interface ItemNavegacao {
 export const NAVEGACAO: readonly ItemNavegacao[] = [
   { href: "/", rotulo: "Início", icone: "inicio", papeis: PAPEIS },
   { href: "/leads", rotulo: "Leads", icone: "leads", papeis: ["admin", "suporte", "vendas"] },
+  { href: "/leads?visao=para_fechar", rotulo: "Reuniões para fechar", icone: "reunioes", papeis: ["admin", "suporte"] },
   { href: "/funil", rotulo: "Funil", icone: "funil", papeis: PAPEIS },
   { href: "/perfil", rotulo: "Perfil", icone: "perfil", papeis: PAPEIS },
   { href: "/usuarios", rotulo: "Usuários", icone: "usuarios", papeis: ["admin"] },
@@ -53,6 +54,10 @@ export const ACESSO_ROTAS = {
   /** Perfil estatístico (só agregados; "leitura" com células pequenas ocultas, ver perfil.ts). */
   perfil: PAPEIS,
   usuarios: ["admin"],
+  /** Atribuir, trocar ou remover o responsável por um lead (na ficha e em lote). */
+  atribuir: ["admin"],
+  /** Marcar reunião realizada ou não compareceu, e desfazer; visão "Reuniões para fechar". */
+  marcarReuniao: ["admin", "suporte"],
 } as const satisfies Record<string, readonly Papel[]>;
 
 export function podeAcessar(papel: Papel, area: keyof typeof ACESSO_ROTAS): boolean {

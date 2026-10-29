@@ -76,3 +76,8 @@ const pontos = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1, signDi
 export function formatarPontos(fracao: number): string {
   return `${pontos.format(Math.round(fracao * 1000) / 10)} p.p.`;
 }
+
+/** `data` já passou? */
+export function jaPassou(data: Date | string, agora = Date.now()): boolean {
+  return new Date(data).getTime() < agora;
+}

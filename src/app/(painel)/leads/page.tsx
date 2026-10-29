@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EtiquetaEtapa } from "@/components/leads/EtiquetaEtapa";
+import { CaixaDoLead, SelecaoEmLote } from "@/components/leads/SelecaoEmLote";
 import { Aviso } from "@/components/ui/Aviso";
 import { Seletor } from "@/components/ui/Seletor";
 import { botao, campo, rotulo } from "@/components/ui/estilos";
@@ -8,6 +9,7 @@ import { ETAPAS, ROTULO_ETAPA } from "@/lib/etapas";
 import {
   lerFiltros,
   podeFiltrarResponsavel,
+  podeVerVisao,
   ROTULO_VISAO,
   urlDaLista,
   VERSOES,
@@ -15,9 +17,10 @@ import {
   type FiltrosLeads,
   type Ordem,
 } from "@/lib/filtrosLeads";
-import { formatarData, formatarDataHora, tempoDesde } from "@/lib/formatos";
+import { responsaveisPossiveis } from "@/lib/atribuicao";
+import { formatarData, formatarDataHora, jaPassou, tempoDesde } from "@/lib/formatos";
 import { listarLeads, opcoesDeFiltro, type ItemLista } from "@/lib/leads";
-import { ACESSO_ROTAS } from "@/lib/papeis";
+import { ACESSO_ROTAS, podeAcessar } from "@/lib/papeis";
 import { exigirUsuario } from "@/lib/sessao";
 
 export const metadata: Metadata = { title: "Leads" };
@@ -27,10 +30,17 @@ const SEM_DADOS = "sem dados";
 export default async function PaginaLeads({ searchParams }: PageProps<"/leads">) {
   const usuario = await exigirUsuario(ACESSO_ROTAS.leads);
   const filtros = lerFiltros(await searchParams, usuario.papel);
-  const [pagina, opcoes] = await Promise.all([listarLeads(usuario, filtros), opcoesDeFiltro(usuario)]);
+  const selecionar = podeAcessar(usuario.papel, "atribuir");
+  const [pagina, opcoes, responsaveis] = await Promise.all([
+    listarLeads(usuario, filtros),
+    opcoesDeFiltro(usuario),
+    selecionar ? responsaveisPossiveis() : [],
+  ]);
 
-  const visoes = VISOES.filter((v) => v !== "sem_responsavel" || usuario.papel === "admin");
+  const visoes = VISOES.filter((v) => podeVerVisao(v, usuario.papel));
   const mostrarParado = filtros.visao === "parados";
+  const paraFechar = filtros.visao === "para_fechar";
+  const colunas = { mostrarParado, paraFechar, selecionar };
   const filtrosAtivos = (["status", "criativo", "campanha", "versao", "de", "ate", "responsavel"] as const).filter(
     (c) => filtros[c],
   ).length;
@@ -159,8 +169,25 @@ export default async function PaginaLeads({ searchParams }: PageProps<"/leads">)
           </Aviso>
         ) : (
           <>
-            <TabelaLeads itens={pagina.itens} filtros={filtros} mostrarParado={mostrarParado} />
-            <CartoesLeads itens={pagina.itens} mostrarParado={mostrarParado} />
+            {paraFechar && (
+              <p className="mb-3 text-sm text-texto-suave">
+                Agendados ainda sem desfecho, do agendamento mais antigo para o mais novo. A data da reunião ainda não é
+                preenchida por nenhum fluxo; quando existir e já tiver passado, o lead aparece destacado. Marque o desfecho
+                na ficha.
+              </p>
+            )}
+            {selecionar ? (
+              // A seleção vale para esta página da lista (zera ao trocar de página ou filtro).
+              <SelecaoEmLote key={urlDaLista(filtros, {})} ids={pagina.itens.map((l) => l.id)} opcoes={responsaveis}>
+                <TabelaLeads itens={pagina.itens} filtros={filtros} {...colunas} />
+                <CartoesLeads itens={pagina.itens} {...colunas} />
+              </SelecaoEmLote>
+            ) : (
+              <>
+                <TabelaLeads itens={pagina.itens} filtros={filtros} {...colunas} />
+                <CartoesLeads itens={pagina.itens} {...colunas} />
+              </>
+            )}
             <Paginacao filtros={filtros} pagina={pagina.pagina} paginas={pagina.paginas} />
           </>
         )}
@@ -178,7 +205,16 @@ const ROTULO_ORDEM: Record<Ordem, string> = {
   responsavel: "Responsável",
   reuniao: "Reunião",
   parado: "Tempo parado",
+  agendamento: "Agendamento",
 };
+
+interface Colunas {
+  mostrarParado: boolean;
+  /** Visão "Reuniões para fechar": coluna de agendamento e reunião vencida destacada. */
+  paraFechar: boolean;
+  /** Admin: caixa de seleção para a atribuição em lote. */
+  selecionar: boolean;
+}
 
 function LinkVisao({ href, atual, children }: { href: string; atual: boolean; children: React.ReactNode }) {
   return (
@@ -194,9 +230,19 @@ function LinkVisao({ href, atual, children }: { href: string; atual: boolean; ch
   );
 }
 
-function Reuniao({ data }: { data: Date | null }) {
-  return data ? <>{formatarDataHora(data)}</> : <span className="text-texto-suave">{SEM_DADOS}</span>;
+function Reuniao({ data, paraFechar }: { data: Date | null; paraFechar: boolean }) {
+  if (!data) return <span className="text-texto-suave">{paraFechar ? "sem data de reunião" : SEM_DADOS}</span>;
+  return (
+    <>
+      {formatarDataHora(data)}
+      {paraFechar && jaPassou(data) && (
+        <span className="ml-1 inline-block rounded-full bg-atencao-suave px-2 py-0.5 text-xs font-medium text-atencao">já passou</span>
+      )}
+    </>
+  );
 }
+
+const vencida = (lead: ItemLista, paraFechar: boolean) => paraFechar && lead.reuniao_em !== null && jaPassou(lead.reuniao_em);
 
 function CabecalhoOrdenavel({ ordem, filtros, children }: { ordem: Ordem; filtros: FiltrosLeads; children: React.ReactNode }) {
   const atual = filtros.ordem === ordem;
@@ -212,7 +258,7 @@ function CabecalhoOrdenavel({ ordem, filtros, children }: { ordem: Ordem; filtro
 }
 
 /** Tabela, a partir de 1024px. */
-function TabelaLeads({ itens, filtros, mostrarParado }: { itens: ItemLista[]; filtros: FiltrosLeads; mostrarParado: boolean }) {
+function TabelaLeads({ itens, filtros, mostrarParado, paraFechar, selecionar }: { itens: ItemLista[]; filtros: FiltrosLeads } & Colunas) {
   return (
     // Com texto ampliado a tabela pode passar da largura: rola dentro da
     // própria área (focável, pra rolar pelo teclado), sem cortar nada.
@@ -226,19 +272,30 @@ function TabelaLeads({ itens, filtros, mostrarParado }: { itens: ItemLista[]; fi
         <caption className="sr-only">Leads, ordenados por {ROTULO_ORDEM[filtros.ordem].toLowerCase()}</caption>
         <thead className="border-b border-borda bg-superficie">
           <tr>
+            {selecionar && (
+              <th scope="col" className="w-12 px-3 py-2">
+                <span className="sr-only">Seleção</span>
+              </th>
+            )}
             <CabecalhoOrdenavel ordem="nome" filtros={filtros}>Nome</CabecalhoOrdenavel>
             <CabecalhoOrdenavel ordem="etapa" filtros={filtros}>Etapa</CabecalhoOrdenavel>
             {mostrarParado && <CabecalhoOrdenavel ordem="parado" filtros={filtros}>Parado há</CabecalhoOrdenavel>}
             <CabecalhoOrdenavel ordem="criativo" filtros={filtros}>Criativo</CabecalhoOrdenavel>
             <CabecalhoOrdenavel ordem="versao" filtros={filtros}>Versão</CabecalhoOrdenavel>
             <CabecalhoOrdenavel ordem="cadastro" filtros={filtros}>Cadastro</CabecalhoOrdenavel>
+            {paraFechar && <CabecalhoOrdenavel ordem="agendamento" filtros={filtros}>Agendamento</CabecalhoOrdenavel>}
             <CabecalhoOrdenavel ordem="responsavel" filtros={filtros}>Responsável</CabecalhoOrdenavel>
             <CabecalhoOrdenavel ordem="reuniao" filtros={filtros}>Reunião</CabecalhoOrdenavel>
           </tr>
         </thead>
         <tbody className="divide-y divide-borda">
           {itens.map((lead) => (
-            <tr key={lead.id} className="hover:bg-superficie">
+            <tr key={lead.id} className={vencida(lead, paraFechar) ? "bg-atencao-suave" : "hover:bg-superficie"}>
+              {selecionar && (
+                <td className="px-1 py-1">
+                  <CaixaDoLead id={lead.id} nome={lead.nome} onde="tabela" />
+                </td>
+              )}
               <td className="px-3 py-3 font-medium wrap-anywhere">
                 <Link href={`/leads/${lead.id}`} prefetch={false} className="text-petroleo-forte underline-offset-4 hover:underline">
                   {lead.nome}
@@ -249,8 +306,9 @@ function TabelaLeads({ itens, filtros, mostrarParado }: { itens: ItemLista[]; fi
               <td className="px-3 py-3 wrap-anywhere">{lead.utm_content ?? <Vazio />}</td>
               <td className="px-3 py-3">{lead.lp_variant ?? <Vazio />}</td>
               <td className="px-3 py-3 whitespace-nowrap">{formatarData(lead.created_at)}</td>
+              {paraFechar && <td className="px-3 py-3 whitespace-nowrap">{formatarDataHora(lead.agendado_em) ?? <Vazio />}</td>}
               <td className="px-3 py-3 wrap-anywhere">{lead.responsavel_nome ?? <Vazio texto="sem responsável" />}</td>
-              <td className="px-3 py-3 whitespace-nowrap"><Reuniao data={lead.reuniao_em} /></td>
+              <td className="px-3 py-3 whitespace-nowrap"><Reuniao data={lead.reuniao_em} paraFechar={paraFechar} /></td>
             </tr>
           ))}
         </tbody>
@@ -264,24 +322,32 @@ function Vazio({ texto = "—" }: { texto?: string }) {
 }
 
 /** Cartões, abaixo de 1024px. */
-function CartoesLeads({ itens, mostrarParado }: { itens: ItemLista[]; mostrarParado: boolean }) {
+function CartoesLeads({ itens, mostrarParado, paraFechar, selecionar }: { itens: ItemLista[] } & Colunas) {
   return (
     <ul className="divide-y divide-borda overflow-hidden rounded-2xl border border-borda bg-fundo lg:hidden">
       {itens.map((lead) => (
-        <li key={lead.id} className="p-4">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <Link href={`/leads/${lead.id}`} prefetch={false} className="font-semibold text-petroleo-forte underline underline-offset-4 wrap-anywhere">
-              {lead.nome}
-            </Link>
-            <EtiquetaEtapa status={lead.status} />
+        <li key={lead.id} className={`p-4 ${vencida(lead, paraFechar) ? "bg-atencao-suave" : ""}`}>
+          <div className="flex items-start gap-2">
+            {selecionar && (
+              <div className="-mt-2 -ml-2 shrink-0">
+                <CaixaDoLead id={lead.id} nome={lead.nome} onde="cartao" />
+              </div>
+            )}
+            <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-2">
+              <Link href={`/leads/${lead.id}`} prefetch={false} className="font-semibold text-petroleo-forte underline underline-offset-4 wrap-anywhere">
+                {lead.nome}
+              </Link>
+              <EtiquetaEtapa status={lead.status} />
+            </div>
           </div>
           <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
             {mostrarParado && <Par termo="Parado há" valor={tempoDesde(lead.parado_desde)} />}
             <Par termo="Criativo" valor={lead.utm_content ?? <Vazio />} />
             <Par termo="Versão" valor={lead.lp_variant ?? <Vazio />} />
             <Par termo="Cadastro" valor={formatarData(lead.created_at)} />
+            {paraFechar && <Par termo="Agendamento" valor={formatarDataHora(lead.agendado_em) ?? <Vazio />} />}
             <Par termo="Responsável" valor={lead.responsavel_nome ?? <Vazio texto="sem responsável" />} />
-            <Par termo="Reunião" valor={<Reuniao data={lead.reuniao_em} />} />
+            <Par termo="Reunião" valor={<Reuniao data={lead.reuniao_em} paraFechar={paraFechar} />} />
           </dl>
         </li>
       ))}

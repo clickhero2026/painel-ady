@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
-import { ChartColumn, ChartPie, ContactRound, House, LogOut, Menu, Users, X } from "lucide-react";
+import { CalendarCheck, ChartColumn, ChartPie, ContactRound, House, LogOut, Menu, Users, X } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import type { ItemNavegacao } from "@/lib/papeis";
 
-const ICONES = { inicio: House, leads: ContactRound, funil: ChartColumn, perfil: ChartPie, usuarios: Users } as const;
+const ICONES = { inicio: House, leads: ContactRound, reunioes: CalendarCheck, funil: ChartColumn, perfil: ChartPie, usuarios: Users } as const;
 
 interface Props {
   itens: ItemNavegacao[];
+  /** Número ao lado do item (por href), com o que ele conta para o leitor de tela. */
+  contadores?: Record<string, { valor: number; descricao: string }>;
   nome: string;
   papel: string;
   sair: () => Promise<void>;
@@ -20,16 +22,18 @@ interface Props {
  * Barra lateral fixa no desktop; no celular vira uma gaveta aberta pelo
  * botão "Menu" (Esc fecha e o foco volta pro botão).
  */
-export function BarraLateral({ itens, nome, papel, sair }: Props) {
+export function BarraLateral({ itens, contadores = {}, nome, papel, sair }: Props) {
   const caminho = usePathname();
+  const busca = useSearchParams();
   const [aberta, setAberta] = useState(false);
   const idGaveta = useId();
   const botaoMenu = useRef<HTMLButtonElement>(null);
-  const [caminhoAberto, setCaminhoAberto] = useState(caminho);
+  const endereco = `${caminho}?${busca.toString()}`;
+  const [enderecoAberto, setEnderecoAberto] = useState(endereco);
 
-  // Fecha ao navegar.
-  if (caminho !== caminhoAberto) {
-    setCaminhoAberto(caminho);
+  // Fecha ao navegar (inclusive só de visão: /leads → /leads?visao=…).
+  if (endereco !== enderecoAberto) {
+    setEnderecoAberto(endereco);
     setAberta(false);
   }
 
@@ -45,7 +49,15 @@ export function BarraLateral({ itens, nome, papel, sair }: Props) {
     return () => document.removeEventListener("keydown", aoTeclar);
   }, [aberta]);
 
-  const ativo = (href: string) => (href === "/" ? caminho === "/" : caminho.startsWith(href));
+  // Item com ?visao= só fica ativo nessa visão; o item sem visão, nas demais.
+  const visoesDoMenu = itens.flatMap((i) => (i.href.includes("?visao=") ? [i.href.split("?visao=")[1]] : []));
+  const ativo = (href: string) => {
+    if (href === "/") return caminho === "/";
+    const [rota, visao] = href.split("?visao=");
+    if (!caminho.startsWith(rota)) return false;
+    const atual = busca.get("visao");
+    return visao ? atual === visao : !(atual && visoesDoMenu.includes(atual));
+  };
 
   const conteudo = (
     <div className="flex h-full flex-col">
@@ -54,11 +66,13 @@ export function BarraLateral({ itens, nome, papel, sair }: Props) {
           {itens.map((item) => {
             const Icone = ICONES[item.icone];
             const atual = ativo(item.href);
+            const contador = contadores[item.href];
             return (
               <li key={item.href}>
                 <Link
                   href={item.href}
                   aria-current={atual ? "page" : undefined}
+                  aria-label={contador ? `${item.rotulo} ${contador.valor} ${contador.descricao}` : undefined}
                   className={`flex min-h-11 items-center gap-3 rounded-lg border-l-4 px-3 text-sm font-medium transition-colors ${
                     atual
                       ? "border-petroleo bg-petroleo-suave text-petroleo-escuro"
@@ -67,6 +81,12 @@ export function BarraLateral({ itens, nome, papel, sair }: Props) {
                 >
                   <Icone size={18} aria-hidden="true" />
                   {item.rotulo}
+                  {contador && " "}
+                  {contador && (
+                    <span className="ml-auto rounded-full bg-petroleo-forte px-2 py-0.5 text-xs font-semibold text-white tabular-nums">
+                      {contador.valor}
+                    </span>
+                  )}
                 </Link>
               </li>
             );

@@ -2,14 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Mail, MessageCircle } from "lucide-react";
+import { AtribuirResponsavel } from "@/components/leads/AtribuirResponsavel";
 import { CopiarLinkAtivacao } from "@/components/leads/CopiarLinkAtivacao";
+import { MarcarReuniao } from "@/components/leads/MarcarReuniao";
 import { Checklist } from "@/components/leads/Checklist";
 import { EtiquetaEtapa } from "@/components/leads/EtiquetaEtapa";
 import { botao } from "@/components/ui/estilos";
 import { MENSAGEM_WHATSAPP, VALIDADE_LINK_ATIVACAO_DIAS } from "@/config/contato";
 import { formatarData, formatarDataHora, formatarWhatsapp, passouDias, primeiroNome } from "@/lib/formatos";
 import { abrirFicha, type Ficha } from "@/lib/leads";
-import { ACESSO_ROTAS } from "@/lib/papeis";
+import { responsaveisPossiveis } from "@/lib/atribuicao";
+import { ACESSO_ROTAS, podeAcessar } from "@/lib/papeis";
+import { marcacaoDesfazivel, PRAZO_DESFAZER_HORAS } from "@/lib/reuniao";
 import { checklistDeProntidao, textoDaResposta, type Resposta } from "@/lib/respostas";
 import { exigirUsuario } from "@/lib/sessao";
 
@@ -27,6 +31,12 @@ export default async function PaginaFicha({ params }: PageProps<"/leads/[id]">) 
   );
   const linkWhatsapp = `https://wa.me/${lead.whatsapp}?text=${encodeURIComponent(mensagem)}`;
   const linkPodeTerVencido = passouDias(lead.created_at, VALIDADE_LINK_ATIVACAO_DIAS);
+  const podeAtribuir = podeAcessar(usuario.papel, "atribuir");
+  const podeMarcar = podeAcessar(usuario.papel, "marcarReuniao");
+  const [opcoesResponsavel, desfazivel] = await Promise.all([
+    podeAtribuir ? responsaveisPossiveis() : [],
+    podeMarcar ? marcacaoDesfazivel(lead.id, lead.status) : null,
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -79,6 +89,45 @@ export default async function PaginaFicha({ params }: PageProps<"/leads/[id]">) 
           </p>
         )}
       </header>
+
+      {(podeAtribuir || podeMarcar) && (
+        <section aria-labelledby="titulo-atendimento" className="mt-6 grid gap-6 rounded-2xl border border-borda bg-fundo p-5 sm:p-6 lg:grid-cols-2">
+          <h2 id="titulo-atendimento" className="font-semibold lg:col-span-2">
+            Atendimento
+          </h2>
+          {podeAtribuir && (
+            <div className="min-w-0">
+              <AtribuirResponsavel leadId={lead.id} atual={lead.responsavel_id} opcoes={opcoesResponsavel} />
+            </div>
+          )}
+          {podeMarcar && (
+            <div className="min-w-0">
+              <h3 className="mb-1 text-sm font-medium">Desfecho da reunião</h3>
+              {lead.status === "agendado" || desfazivel ? (
+                <>
+                  {lead.status === "agendado" && (
+                    <p className="mb-3 text-sm text-texto-suave">
+                      Data da reunião: {lead.reuniao_em ? formatarDataHora(lead.reuniao_em) : "sem dados"}. Marque depois da
+                      conversa; dá para desfazer em até {PRAZO_DESFAZER_HORAS} horas.
+                    </p>
+                  )}
+                  <MarcarReuniao
+                    leadId={lead.id}
+                    status={lead.status}
+                    desfazivel={desfazivel && { desfecho: desfazivel.desfecho, ate: desfazivel.desfazerAte.toISOString() }}
+                  />
+                </>
+              ) : (
+                <p className="text-sm text-texto-suave">
+                  {lead.status === "realizado" || lead.status === "nao_compareceu"
+                    ? `Desfecho já marcado. O prazo de ${PRAZO_DESFAZER_HORAS} horas para desfazer acabou (ou a marcação não foi feita pelo painel).`
+                    : "Os botões aparecem quando o lead estiver agendado."}
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Bloco titulo="Prontidão para o onboarding">

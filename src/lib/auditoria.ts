@@ -16,7 +16,11 @@ export type AcaoAuditoria =
   | "usuario_reativado"
   | "ver_lead"
   | "copiar_link"
-  | "exportar_funil";
+  | "exportar_funil"
+  | "atribuir_lead"
+  | "marcar_realizada"
+  | "marcar_nao_compareceu"
+  | "desfazer_marcacao";
 
 export async function registrarAuditoria(
   evento: {

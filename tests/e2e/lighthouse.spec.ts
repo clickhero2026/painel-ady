@@ -25,6 +25,7 @@ test("Lighthouse: acessibilidade 100 no login, na lista, na ficha, no funil e no
       ["login", "/login", false],
       ["leads", "/leads", true],
       ["ficha", `/leads/${leadsDe("vera")[2].id}`, true],
+      ["reuniões para fechar", "/leads?visao=para_fechar", true],
       ["funil", "/funil", true],
       ["perfil", "/perfil?periodo=tudo", true],
     ];

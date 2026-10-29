@@ -20,7 +20,7 @@ function vigiarConsole(page: Page) {
 }
 
 /** Sem rolagem horizontal e nenhum texto cortado (elemento mais largo que a própria caixa). */
-async function semCortes(page: Page) {
+async function semCortes(page: Page, onde = "") {
   const problemas = await page.evaluate(() => {
     const achados: string[] = [];
     if (document.documentElement.scrollWidth > window.innerWidth) {
@@ -34,7 +34,7 @@ async function semCortes(page: Page) {
     }
     return achados;
   });
-  expect(problemas).toEqual([]);
+  expect(problemas, onde).toEqual([]);
 }
 
 /** Os gráficos do funil desenham só no navegador, depois do HTML. */
@@ -77,6 +77,27 @@ for (const largura of LARGURAS) {
     await semCortes(page);
     if (capturar) await page.screenshot({ path: `docs/capturas/ficha-${largura}.png`, fullPage: true });
 
+    // Ficha com atribuição (admin) e com a confirmação da reunião aberta.
+    await expect(page.getByRole("region", { name: "Atendimento" })).toBeVisible();
+    if (capturar) await page.getByRole("region", { name: "Atendimento" }).screenshot({ path: `docs/capturas/ficha-atribuicao-${largura}.png` });
+    await page.getByRole("button", { name: "Reunião realizada" }).click();
+    await expect(page.getByText("Marcar a reunião como realizada?")).toBeVisible();
+    await semCortes(page);
+    if (capturar) await page.screenshot({ path: `docs/capturas/ficha-reuniao-${largura}.png`, fullPage: true });
+    await page.getByRole("button", { name: "Cancelar" }).click();
+
+    // Lista com seleção em lote.
+    await page.goto("/leads?visao=sem_responsavel");
+    for (const caixa of (await page.getByRole("checkbox", { name: /^Selecionar (?!todos)/ }).all()).slice(0, 3)) await caixa.check();
+    await expect(page.getByText("3 leads selecionados.")).toBeVisible();
+    await page.getByLabel("Responsável para os selecionados").selectOption({ label: "Vera Vendas (Vendas)" });
+    await semCortes(page);
+    if (capturar) await page.screenshot({ path: `docs/capturas/lista-lote-${largura}.png`, fullPage: true });
+
+    await page.goto("/leads?visao=para_fechar");
+    await expect(page.getByText(/leads em “Reuniões para fechar”/)).toBeVisible();
+    await semCortes(page);
+
     await page.goto("/funil");
     await expect(page.getByRole("heading", { name: "Funil", level: 1 })).toBeVisible();
     await graficosProntos(page);
@@ -107,7 +128,7 @@ for (const largura of LARGURAS) {
 test("texto a 200% sem cortar (1280px)", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
   await entrar(page, EMAIL_DO_PAPEL.admin);
-  for (const caminho of ["/", "/leads", `/leads/${LEAD.id}`, "/funil", "/perfil?periodo=tudo", "/usuarios"]) {
+  for (const caminho of ["/", "/leads", "/leads?visao=para_fechar", `/leads/${LEAD.id}`, "/funil", "/perfil?periodo=tudo", "/usuarios"]) {
     await page.goto(caminho);
     if (caminho === "/funil") await graficosProntos(page);
     // Pelo CSSOM: a CSP do painel bloqueia <style> injetado.
@@ -122,7 +143,7 @@ test("texto a 200% sem cortar (1280px)", async ({ page }) => {
         ),
       );
     }
-    await semCortes(page);
+    await semCortes(page, caminho);
   }
 });
 
@@ -146,6 +167,8 @@ test("axe sem violações (WCAG 2.2 AA) em todas as telas", async ({ page }) => 
       ["leads", "/leads"],
       ["leads parados", "/leads?visao=parados"],
       ["ficha", `/leads/${LEAD.id}`],
+      ["reuniões para fechar", "/leads?visao=para_fechar"],
+      ["fila sem responsável", "/leads?visao=sem_responsavel"],
       ["funil", "/funil"],
       ["funil vazio", "/funil?de=2020-01-01&ate=2020-01-07"],
       ["perfil", "/perfil?periodo=tudo"],
@@ -159,6 +182,13 @@ test("axe sem violações (WCAG 2.2 AA) em todas as telas", async ({ page }) => 
       await verificar(`${nome} ${largura}`);
     }
   }
+  // Confirmação da reunião aberta e lista com seleção.
+  await page.goto(`/leads/${LEAD.id}`);
+  await page.getByRole("button", { name: "Reunião realizada" }).click();
+  await verificar("ficha confirmando reunião");
+  await page.goto("/leads");
+  await page.getByLabel("Selecionar todos desta página").check();
+  await verificar("lista com seleção");
   // 403 visto por quem não tem acesso.
   await page.context().clearCookies();
   await entrar(page, EMAIL_DO_PAPEL.leitura);
