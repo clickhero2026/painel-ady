@@ -46,3 +46,7 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /.e2e-servidor.log
+/.vitest/
+
+# editor
+/painel.code-workspace
