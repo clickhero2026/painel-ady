@@ -16,16 +16,18 @@ link mágico por e-mail. Não há regra por domínio. O primeiro admin vem de
 `PAINEL_ADMIN_INICIAL` (só com a tabela vazia); os demais, da tela
 **Usuários**.
 
-| Papel   | Início | Leads (lista, ficha, link de ativação) | Funil (agregado) | CSV do funil | Usuários |
-| ------- | :----: | :------------------------------------: | :--------------: | :----------: | :------: |
-| admin   |   ✓    |                 todos                  |        ✓         |      ✓       |    ✓     |
-| suporte |   ✓    |                 todos                  |        ✓         |      —       |    —     |
-| vendas  |   ✓    |      só os seus (os outros dão 404)    |        ✓         |      —       |    —     |
-| leitura |   ✓    |                   —                    |        ✓         |      —       |    —     |
+| Papel   | Início | Leads (lista, ficha, link de ativação) | Funil (agregado) | CSV do funil | Perfil (agregado)          | Usuários |
+| ------- | :----: | :------------------------------------: | :--------------: | :----------: | :------------------------: | :------: |
+| admin   |   ✓    |                 todos                  |        ✓         |      ✓       |             ✓              |    ✓     |
+| suporte |   ✓    |                 todos                  |        ✓         |      —       |             ✓              |    —     |
+| vendas  |   ✓    |      só os seus (os outros dão 404)    |        ✓         |      —       |             ✓              |    —     |
+| leitura |   ✓    |                   —                    |        ✓         |      —       | ✓, células de 1 a 4 ocultas |    —     |
 
 Toda consulta de lead passa por `leadsVisiveis` (`src/lib/leads.ts`). Os
 indicadores do funil (só agregados, sem dado pessoal) saem todos de
-`src/lib/funil.ts`, onde estão as definições de cada etapa. Regras
+`src/lib/funil.ts`, onde estão as definições de cada etapa; o perfil
+(`src/lib/perfil.ts`) usa as mesmas definições e cortes, e oculta no
+servidor as células pequenas para o papel leitura. Regras
 editáveis: checklist de prontidão em `src/config/prontidao.ts`; mensagem do
 WhatsApp e endereço do link de ativação em `src/config/contato.ts`. O mapa de
 respostas (`src/lib/teste7dOptions.ts`) é cópia do site.

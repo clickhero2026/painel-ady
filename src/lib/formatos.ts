@@ -69,3 +69,10 @@ export function formatarDia(dia: string, curta = false): string {
   const [a, m, d] = dia.split("-");
   return curta ? `${d}/${m}` : `${d}/${m}/${a}`;
 }
+
+const pontos = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1, signDisplay: "exceptZero" });
+
+/** Diferença entre frações em pontos percentuais: 0.123 → "+12,3 p.p.". */
+export function formatarPontos(fracao: number): string {
+  return `${pontos.format(Math.round(fracao * 1000) / 10)} p.p.`;
+}

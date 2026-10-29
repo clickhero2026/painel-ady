@@ -83,6 +83,11 @@ for (const largura of LARGURAS) {
     await semCortes(page);
     if (capturar) await page.screenshot({ path: `docs/capturas/funil-${largura}.png`, fullPage: true });
 
+    await page.goto("/perfil?periodo=tudo");
+    await expect(page.getByRole("heading", { name: "Perfil dos leads", level: 1 })).toBeVisible();
+    await semCortes(page);
+    if (capturar) await page.screenshot({ path: `docs/capturas/perfil-${largura}.png`, fullPage: true });
+
     await page.goto("/usuarios");
     await semCortes(page);
     if (capturar) await page.screenshot({ path: `docs/capturas/usuarios-${largura}.png`, fullPage: true });
@@ -102,7 +107,7 @@ for (const largura of LARGURAS) {
 test("texto a 200% sem cortar (1280px)", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
   await entrar(page, EMAIL_DO_PAPEL.admin);
-  for (const caminho of ["/", "/leads", `/leads/${LEAD.id}`, "/funil", "/usuarios"]) {
+  for (const caminho of ["/", "/leads", `/leads/${LEAD.id}`, "/funil", "/perfil?periodo=tudo", "/usuarios"]) {
     await page.goto(caminho);
     if (caminho === "/funil") await graficosProntos(page);
     // Pelo CSSOM: a CSP do painel bloqueia <style> injetado.
@@ -143,6 +148,8 @@ test("axe sem violações (WCAG 2.2 AA) em todas as telas", async ({ page }) => 
       ["ficha", `/leads/${LEAD.id}`],
       ["funil", "/funil"],
       ["funil vazio", "/funil?de=2020-01-01&ate=2020-01-07"],
+      ["perfil", "/perfil?periodo=tudo"],
+      ["perfil vazio", "/perfil?de=2020-01-01&ate=2020-01-07"],
       ["usuários", "/usuarios"],
       ["404", "/nao-existe"],
       ["404 de lead", "/leads/00000000-0000-4000-8000-999999999999"],
@@ -157,6 +164,9 @@ test("axe sem violações (WCAG 2.2 AA) em todas as telas", async ({ page }) => 
   await entrar(page, EMAIL_DO_PAPEL.leitura);
   await page.goto("/leads");
   await verificar("403");
+  // Perfil com células ocultas.
+  await page.goto("/perfil?periodo=tudo");
+  await verificar("perfil leitura");
 });
 
 test("teclado: pular para o conteúdo e navegar pelo login", async ({ page }) => {

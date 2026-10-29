@@ -9,7 +9,7 @@ import { EMAIL_DO_PAPEL, entrar, prepararEquipe } from "./apoio";
  * como admin: o cookie de sessão vai no cabeçalho de cada requisição.
  * Usa o Google Chrome instalado na máquina.
  */
-test("Lighthouse: acessibilidade 100 no login, na lista, na ficha e no funil", async ({ page, context }) => {
+test("Lighthouse: acessibilidade 100 no login, na lista, na ficha, no funil e no perfil", async ({ page, context }) => {
   test.setTimeout(240_000);
   await prepararEquipe();
   await entrar(page, EMAIL_DO_PAPEL.admin);
@@ -26,6 +26,7 @@ test("Lighthouse: acessibilidade 100 no login, na lista, na ficha e no funil", a
       ["leads", "/leads", true],
       ["ficha", `/leads/${leadsDe("vera")[2].id}`, true],
       ["funil", "/funil", true],
+      ["perfil", "/perfil?periodo=tudo", true],
     ];
     for (const [nome, caminho, logado] of telas) {
       for (const formFactor of ["mobile", "desktop"] as const) {

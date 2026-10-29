@@ -33,12 +33,17 @@ export default async function Inicio() {
         <section className="rounded-2xl border border-borda bg-fundo p-6">
           <h2 className="font-semibold">Indicadores</h2>
           <p className="mt-2 text-sm text-texto-suave">
-            Cadastros, ativações e agendamentos do funil, por período, criativo, campanha e versão do título. Só
-            números agregados.
+            Cadastros, ativações e agendamentos do funil e o perfil das respostas da ativação, por período,
+            criativo, campanha e versão do título. Só números agregados.
           </p>
-          <Link href="/funil" className="mt-4 inline-flex min-h-11 items-center font-semibold text-petroleo-forte underline-offset-4 hover:underline">
-            Ver o funil
-          </Link>
+          <div className="mt-4 flex flex-wrap gap-x-6">
+            <Link href="/funil" className="inline-flex min-h-11 items-center font-semibold text-petroleo-forte underline-offset-4 hover:underline">
+              Ver o funil
+            </Link>
+            <Link href="/perfil" className="inline-flex min-h-11 items-center font-semibold text-petroleo-forte underline-offset-4 hover:underline">
+              Ver o perfil dos leads
+            </Link>
+          </div>
         </section>
         {usuario.papel === "admin" && (
           <section className="rounded-2xl border border-borda bg-fundo p-6 sm:col-span-2">

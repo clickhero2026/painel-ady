@@ -146,6 +146,9 @@ test.describe("sessão", () => {
 
   test("7 dias depois do login: pede login de novo mesmo em uso", async ({ page }) => {
     await entrar(page, EMAIL_DO_PAPEL.vendas);
+    // Espera os pré-carregamentos dos links do Início: um que chegasse depois do
+    // UPDATE encerraria a sessão antes, e o login viria sem o "motivo".
+    await page.waitForLoadState("networkidle");
     await sql("UPDATE painel_auth_session SET created_at = now() - interval '7 days 1 minute'");
     await page.goto("/");
     await expect(page).toHaveURL("/login?motivo=expirada");

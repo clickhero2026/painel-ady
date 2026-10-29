@@ -160,9 +160,18 @@ export function parametrosDoFunil(
   return p;
 }
 
-export function urlDoFunil(filtros: FiltrosFunil, mudar: Partial<Record<keyof FiltrosFunil, string | undefined>> = {}): string {
+/** URL de uma tela com estes cortes (o funil e o perfil usam os mesmos). */
+export function urlDoRecorte(
+  caminho: string,
+  filtros: FiltrosFunil,
+  mudar: Partial<Record<keyof FiltrosFunil, string | undefined>> = {},
+): string {
   const qs = parametrosDoFunil(filtros, mudar).toString();
-  return qs ? `/funil?${qs}` : "/funil";
+  return qs ? `${caminho}?${qs}` : caminho;
+}
+
+export function urlDoFunil(filtros: FiltrosFunil, mudar: Partial<Record<keyof FiltrosFunil, string | undefined>> = {}): string {
+  return urlDoRecorte("/funil", filtros, mudar);
 }
 
 /** Abaixo disto, a tela marca "amostra pequena". */

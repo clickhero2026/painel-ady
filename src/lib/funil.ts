@@ -23,13 +23,16 @@ import { FUSO_SQL, Parametros } from "./sql";
  * globais (não dependem do papel nem do responsável pelo lead).
  */
 
+/** Etapas, como condição SQL sobre `teste7d_inscricoes i` (usadas também pelo perfil). */
+export const ATIVOU = "i.etapa2_concluida_em IS NOT NULL";
+export const AGENDOU = "i.agendado_em IS NOT NULL";
 const REALIZADA = "(i.status = 'realizado' OR i.realizada_em IS NOT NULL)";
 const NAO_COMPARECEU = "i.status = 'nao_compareceu'";
 const RESULTADO_DE_REUNIAO = `(${REALIZADA} OR ${NAO_COMPARECEU})`;
 
 const CONTAGENS = `count(*)::int AS cadastros,
-  count(i.etapa2_concluida_em)::int AS ativacoes,
-  count(i.agendado_em)::int AS agendamentos,
+  (count(*) FILTER (WHERE ${ATIVOU}))::int AS ativacoes,
+  (count(*) FILTER (WHERE ${AGENDOU}))::int AS agendamentos,
   (count(*) FILTER (WHERE ${REALIZADA}))::int AS realizadas,
   (count(*) FILTER (WHERE ${NAO_COMPARECEU}))::int AS nao_compareceu,
   (count(*) FILTER (WHERE ${RESULTADO_DE_REUNIAO}))::int AS com_resultado`;
@@ -40,7 +43,7 @@ const mediana = (fim: string, inicio: string) =>
 const DIA_SP = `(i.created_at AT TIME ZONE '${FUSO_SQL}')::date`;
 
 /** Condições SQL dos cortes (todas sobre `teste7d_inscricoes i`). */
-function condicoes(f: FiltrosFunil, p: Parametros): string {
+export function condicoes(f: FiltrosFunil, p: Parametros): string {
   const where = ["TRUE"];
   // Limites do dia em São Paulo, convertidos pra instante: usa o índice de created_at.
   if (f.de) where.push(`i.created_at >= (${p.add(f.de)}::date::timestamp AT TIME ZONE '${FUSO_SQL}')`);
@@ -221,7 +224,7 @@ async function serie(f: FiltrosFunil, agora: Date): Promise<DiaDaSerie[]> {
  * pessoa avança dela, e a primeira tela sem resposta é onde ela parou (é
  * também onde a retomada a leva). Não há horário por pergunta.
  */
-const preenchido = (coluna: string) => `nullif(btrim(i.${coluna}), '') IS NOT NULL`;
+export const preenchido = (coluna: string) => `nullif(btrim(i.${coluna}), '') IS NOT NULL`;
 
 export const TELAS_DA_ATIVACAO: readonly { id: string; pergunta: string; respondida: string }[] = [
   { id: "negocio", pergunta: "Nome do negócio e o que vende", respondida: preenchido("negocio_nome_oferta") },
@@ -246,7 +249,7 @@ export const TELAS_DA_ATIVACAO: readonly { id: string; pergunta: string; respond
 ];
 
 const PAROU_EM = `CASE
-  WHEN i.etapa2_concluida_em IS NOT NULL THEN 'concluiu'
+  WHEN ${ATIVOU} THEN 'concluiu'
   ${TELAS_DA_ATIVACAO.map((t) => `WHEN NOT ${t.respondida} THEN '${t.id}'`).join("\n  ")}
 END`;
 

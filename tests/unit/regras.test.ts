@@ -4,16 +4,20 @@ import { caminhoInternoSeguro, montarCsp } from "@/lib/seguranca";
 import { passouDoMaximo } from "@/lib/sessao";
 
 describe("papéis", () => {
-  it("barra lateral: Leads para admin, suporte e vendas; Funil para todos; Usuários só para admin", () => {
-    expect(navegacaoDoPapel("admin").map((i) => i.href)).toEqual(["/", "/leads", "/funil", "/usuarios"]);
-    expect(navegacaoDoPapel("suporte").map((i) => i.href)).toEqual(["/", "/leads", "/funil"]);
-    expect(navegacaoDoPapel("vendas").map((i) => i.href)).toEqual(["/", "/leads", "/funil"]);
-    expect(navegacaoDoPapel("leitura").map((i) => i.href)).toEqual(["/", "/funil"]);
+  it("barra lateral: Leads para admin, suporte e vendas; Funil e Perfil para todos; Usuários só para admin", () => {
+    expect(navegacaoDoPapel("admin").map((i) => i.href)).toEqual(["/", "/leads", "/funil", "/perfil", "/usuarios"]);
+    expect(navegacaoDoPapel("suporte").map((i) => i.href)).toEqual(["/", "/leads", "/funil", "/perfil"]);
+    expect(navegacaoDoPapel("vendas").map((i) => i.href)).toEqual(["/", "/leads", "/funil", "/perfil"]);
+    expect(navegacaoDoPapel("leitura").map((i) => i.href)).toEqual(["/", "/funil", "/perfil"]);
   });
 
   it("funil: todos veem, só admin exporta", () => {
     for (const papel of PAPEIS) expect(podeAcessar(papel, "funil")).toBe(true);
     expect(PAPEIS.filter((p) => podeAcessar(p, "exportarFunil"))).toEqual(["admin"]);
+  });
+
+  it("perfil: todos veem (sem exportação)", () => {
+    for (const papel of PAPEIS) expect(podeAcessar(papel, "perfil")).toBe(true);
   });
 
   it("acesso às áreas", () => {
