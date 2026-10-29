@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { EtiquetaEtapa } from "@/components/leads/EtiquetaEtapa";
 import { Aviso } from "@/components/ui/Aviso";
+import { Seletor } from "@/components/ui/Seletor";
 import { botao, campo, rotulo } from "@/components/ui/estilos";
 import { ETAPAS, ROTULO_ETAPA } from "@/lib/etapas";
 import {
@@ -190,30 +191,6 @@ function LinkVisao({ href, atual, children }: { href: string; atual: boolean; ch
     >
       {children}
     </Link>
-  );
-}
-
-function Seletor(props: {
-  id: string;
-  rotulo: string;
-  valor: string | undefined;
-  opcoes: [string, string][];
-  vazio?: boolean;
-}) {
-  return (
-    <div>
-      <label htmlFor={props.id} className={rotulo}>
-        {props.rotulo}
-      </label>
-      <select id={props.id} name={props.id} defaultValue={props.valor ?? ""} className={campo}>
-        {props.vazio !== false && <option value="">Todos</option>}
-        {props.opcoes.map(([valor, texto]) => (
-          <option key={valor} value={valor}>
-            {texto}
-          </option>
-        ))}
-      </select>
-    </div>
   );
 }
 

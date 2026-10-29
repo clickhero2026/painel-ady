@@ -37,6 +37,12 @@ async function semCortes(page: Page) {
   expect(problemas).toEqual([]);
 }
 
+/** Os gráficos do funil desenham só no navegador, depois do HTML. */
+async function graficosProntos(page: Page) {
+  await expect(page.locator(".recharts-surface")).toHaveCount(2);
+  await expect(page.locator(".recharts-bar-rectangle").first()).toBeVisible();
+}
+
 test.beforeEach(async () => {
   await prepararEquipe();
   // Um lead com observação longa e sem espaços, pra testar quebra de linha.
@@ -71,6 +77,12 @@ for (const largura of LARGURAS) {
     await semCortes(page);
     if (capturar) await page.screenshot({ path: `docs/capturas/ficha-${largura}.png`, fullPage: true });
 
+    await page.goto("/funil");
+    await expect(page.getByRole("heading", { name: "Funil", level: 1 })).toBeVisible();
+    await graficosProntos(page);
+    await semCortes(page);
+    if (capturar) await page.screenshot({ path: `docs/capturas/funil-${largura}.png`, fullPage: true });
+
     await page.goto("/usuarios");
     await semCortes(page);
     if (capturar) await page.screenshot({ path: `docs/capturas/usuarios-${largura}.png`, fullPage: true });
@@ -90,10 +102,21 @@ for (const largura of LARGURAS) {
 test("texto a 200% sem cortar (1280px)", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
   await entrar(page, EMAIL_DO_PAPEL.admin);
-  for (const caminho of ["/", "/leads", `/leads/${LEAD.id}`, "/usuarios"]) {
+  for (const caminho of ["/", "/leads", `/leads/${LEAD.id}`, "/funil", "/usuarios"]) {
     await page.goto(caminho);
+    if (caminho === "/funil") await graficosProntos(page);
     // Pelo CSSOM: a CSP do painel bloqueia <style> injetado.
     await page.evaluate(() => document.documentElement.style.setProperty("font-size", "200%", "important"));
+    // Os gráficos se medem de novo (ResizeObserver) depois da troca de fonte.
+    if (caminho === "/funil") {
+      await page.waitForFunction(() =>
+        [...document.querySelectorAll(".recharts-wrapper")].every(
+          (g) =>
+            g.getBoundingClientRect().width <=
+            g.closest(".recharts-responsive-container")!.getBoundingClientRect().width + 1,
+        ),
+      );
+    }
     await semCortes(page);
   }
 });
@@ -118,11 +141,14 @@ test("axe sem violações (WCAG 2.2 AA) em todas as telas", async ({ page }) => 
       ["leads", "/leads"],
       ["leads parados", "/leads?visao=parados"],
       ["ficha", `/leads/${LEAD.id}`],
+      ["funil", "/funil"],
+      ["funil vazio", "/funil?de=2020-01-01&ate=2020-01-07"],
       ["usuários", "/usuarios"],
       ["404", "/nao-existe"],
       ["404 de lead", "/leads/00000000-0000-4000-8000-999999999999"],
     ]) {
       await page.goto(caminho);
+      if (caminho === "/funil") await graficosProntos(page);
       await verificar(`${nome} ${largura}`);
     }
   }

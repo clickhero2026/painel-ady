@@ -24,7 +24,7 @@ export function ehPapel(valor: unknown): valor is Papel {
 export interface ItemNavegacao {
   href: string;
   rotulo: string;
-  icone: "inicio" | "leads" | "usuarios";
+  icone: "inicio" | "leads" | "funil" | "usuarios";
   papeis: readonly Papel[];
 }
 
@@ -32,6 +32,7 @@ export interface ItemNavegacao {
 export const NAVEGACAO: readonly ItemNavegacao[] = [
   { href: "/", rotulo: "Início", icone: "inicio", papeis: PAPEIS },
   { href: "/leads", rotulo: "Leads", icone: "leads", papeis: ["admin", "suporte", "vendas"] },
+  { href: "/funil", rotulo: "Funil", icone: "funil", papeis: PAPEIS },
   { href: "/usuarios", rotulo: "Usuários", icone: "usuarios", papeis: ["admin"] },
 ];
 
@@ -44,6 +45,10 @@ export const ACESSO_ROTAS = {
   inicio: PAPEIS,
   /** Lista, ficha e link de ativação. Vendas só enxerga os seus (ver leads.ts). */
   leads: ["admin", "suporte", "vendas"],
+  /** Indicadores agregados (sem dados pessoais): todos os papéis. */
+  funil: PAPEIS,
+  /** CSV da tabela comparativa do funil. */
+  exportarFunil: ["admin"],
   usuarios: ["admin"],
 } as const satisfies Record<string, readonly Papel[]>;
 

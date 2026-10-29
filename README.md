@@ -7,7 +7,7 @@ auditoria.
 
 **Stack:** Next.js 16 (App Router, `src/proxy.ts`), TypeScript, Tailwind 4,
 Better Auth (Google + link mágico), `@neondatabase/serverless`, SendGrid
-(API v3 via fetch), Vitest e Playwright.
+(API v3 via fetch), Recharts (gráficos do funil), Vitest e Playwright.
 
 ## Quem entra
 
@@ -16,14 +16,16 @@ link mágico por e-mail. Não há regra por domínio. O primeiro admin vem de
 `PAINEL_ADMIN_INICIAL` (só com a tabela vazia); os demais, da tela
 **Usuários**.
 
-| Papel   | Início | Leads (lista, ficha, link de ativação) | Usuários |
-| ------- | :----: | :------------------------------------: | :------: |
-| admin   |   ✓    |                 todos                  |    ✓     |
-| suporte |   ✓    |                 todos                  |    —     |
-| vendas  |   ✓    |      só os seus (os outros dão 404)    |    —     |
-| leitura |   ✓    |                   —                    |    —     |
+| Papel   | Início | Leads (lista, ficha, link de ativação) | Funil (agregado) | CSV do funil | Usuários |
+| ------- | :----: | :------------------------------------: | :--------------: | :----------: | :------: |
+| admin   |   ✓    |                 todos                  |        ✓         |      ✓       |    ✓     |
+| suporte |   ✓    |                 todos                  |        ✓         |      —       |    —     |
+| vendas  |   ✓    |      só os seus (os outros dão 404)    |        ✓         |      —       |    —     |
+| leitura |   ✓    |                   —                    |        ✓         |      —       |    —     |
 
-Toda consulta de lead passa por `leadsVisiveis` (`src/lib/leads.ts`). Regras
+Toda consulta de lead passa por `leadsVisiveis` (`src/lib/leads.ts`). Os
+indicadores do funil (só agregados, sem dado pessoal) saem todos de
+`src/lib/funil.ts`, onde estão as definições de cada etapa. Regras
 editáveis: checklist de prontidão em `src/config/prontidao.ts`; mensagem do
 WhatsApp e endereço do link de ativação em `src/config/contato.ts`. O mapa de
 respostas (`src/lib/teste7dOptions.ts`) é cópia do site.

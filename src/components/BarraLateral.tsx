@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
-import { ContactRound, House, LogOut, Menu, Users, X } from "lucide-react";
+import { ChartColumn, ContactRound, House, LogOut, Menu, Users, X } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import type { ItemNavegacao } from "@/lib/papeis";
 
-const ICONES = { inicio: House, leads: ContactRound, usuarios: Users } as const;
+const ICONES = { inicio: House, leads: ContactRound, funil: ChartColumn, usuarios: Users } as const;
 
 interface Props {
   itens: ItemNavegacao[];

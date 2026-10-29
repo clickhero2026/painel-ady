@@ -15,7 +15,8 @@ export type AcaoAuditoria =
   | "usuario_desativado"
   | "usuario_reativado"
   | "ver_lead"
-  | "copiar_link";
+  | "copiar_link"
+  | "exportar_funil";
 
 export async function registrarAuditoria(
   evento: {

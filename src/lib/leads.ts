@@ -4,6 +4,7 @@ import { pool } from "./db";
 import { ETAPAS_PARADAS } from "./etapas";
 import { POR_PAGINA, type FiltrosLeads, type Ordem } from "./filtrosLeads";
 import type { Papel } from "./papeis";
+import { Parametros } from "./sql";
 
 /**
  * ÚNICO ponto de acesso aos leads (teste7d_inscricoes). Toda consulta passa
@@ -25,15 +26,6 @@ export interface QuemConsulta {
 }
 
 export class SemAcessoALeads extends Error {}
-
-/** Acumula os valores dos parâmetros ($1, $2, …) de uma consulta. */
-class Parametros {
-  readonly valores: unknown[] = [];
-  add(valor: unknown): string {
-    this.valores.push(valor);
-    return `$${this.valores.length}`;
-  }
-}
 
 const ORIGEM = `teste7d_inscricoes i
   LEFT JOIN painel_lead_responsavel r ON r.lead_id = i.id
