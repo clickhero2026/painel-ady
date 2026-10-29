@@ -1,26 +1,66 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ==========================================================================
+   ady — tema claro do painel (mesmos valores do guia de marca usados no site)
+   - Petróleo #17708A é a cor de UI sobre fundo claro (botão, link, texto de
+     destaque): branco sobre ela dá 5,4:1 e ela sobre branco também (AA).
+   - Petróleo #1E88A8 só em elementos não textuais (anel de foco, bordas de
+     destaque, indicador do item ativo): 3,9:1 sobre branco, acima dos 3:1
+     exigidos para componentes de interface — nunca como cor de texto.
+   - Laranja #CF6F03 só no ponto do símbolo do ady, nunca em UI.
+   ========================================================================== */
+
+@theme {
+  --font-sans: var(--font-gantari), system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  --color-petroleo: #1e88a8;
+  --color-petroleo-forte: #17708a;
+  --color-petroleo-escuro: #125a6f;
+  --color-petroleo-suave: #e3f1f6;
+  --color-faisca: #cf6f03;
+
+  --color-texto: #0c0d0a;
+  /* Texto secundário: 7,4:1 sobre branco e 7:1 sobre o fundo azulado. */
+  --color-texto-suave: #45525a;
+  --color-fundo: #ffffff;
+  --color-superficie: #f4f9fb;
+  --color-borda: #d3e2e8;
+  /* Borda de campo de formulário: 3:1 sobre branco (WCAG 1.4.11). */
+  --color-borda-campo: #7d8f97;
+
+  --color-erro: #b42318;
+  --color-erro-suave: #fdecea;
+  --color-sucesso: #0b6b3a;
+  --color-sucesso-suave: #e6f4ec;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    background-color: var(--color-superficie);
+    color: var(--color-texto);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  /* Foco visível e consistente para quem navega pelo teclado. */
+  :focus-visible {
+    outline: 3px solid var(--color-petroleo);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
 }

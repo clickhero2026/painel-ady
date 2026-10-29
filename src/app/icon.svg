@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Mesmo símbolo provisório do site (até o asset oficial do guia de marca). -->
+  <rect width="64" height="64" rx="14" fill="#17708A" />
+  <circle cx="32" cy="36" r="14" fill="#FFFFFF" />
+  <circle cx="32" cy="14" r="4" fill="#CF6F03" />
+</svg>
