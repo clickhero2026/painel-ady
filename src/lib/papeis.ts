@@ -24,13 +24,14 @@ export function ehPapel(valor: unknown): valor is Papel {
 export interface ItemNavegacao {
   href: string;
   rotulo: string;
-  icone: "inicio" | "usuarios";
+  icone: "inicio" | "leads" | "usuarios";
   papeis: readonly Papel[];
 }
 
 /** Itens da barra lateral. Uma rota nova entra aqui e em `ACESSO_ROTAS`. */
 export const NAVEGACAO: readonly ItemNavegacao[] = [
   { href: "/", rotulo: "Início", icone: "inicio", papeis: PAPEIS },
+  { href: "/leads", rotulo: "Leads", icone: "leads", papeis: ["admin", "suporte", "vendas"] },
   { href: "/usuarios", rotulo: "Usuários", icone: "usuarios", papeis: ["admin"] },
 ];
 
@@ -41,6 +42,8 @@ export function navegacaoDoPapel(papel: Papel): ItemNavegacao[] {
 /** Quem pode abrir cada área (checado no servidor, inclusive pela URL direta). */
 export const ACESSO_ROTAS = {
   inicio: PAPEIS,
+  /** Lista, ficha e link de ativação. Vendas só enxerga os seus (ver leads.ts). */
+  leads: ["admin", "suporte", "vendas"],
   usuarios: ["admin"],
 } as const satisfies Record<string, readonly Papel[]>;
 

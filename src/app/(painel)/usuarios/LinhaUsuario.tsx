@@ -29,13 +29,13 @@ export function LinhaUsuario({ usuario, ehVoce }: Props) {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 font-medium">
-            <span className="truncate">{nome}</span>
+            <span className="wrap-anywhere">{nome}</span>
             {ehVoce && <span className="rounded-full bg-petroleo-suave px-2 py-0.5 text-xs text-petroleo-escuro">você</span>}
             {!usuario.ativo && (
               <span className="rounded-full border border-borda-campo px-2 py-0.5 text-xs text-texto-suave">desativado</span>
             )}
           </p>
-          {usuario.nome && <p className="truncate text-sm text-texto-suave">{usuario.email}</p>}
+          {usuario.nome && <p className="text-sm text-texto-suave wrap-anywhere">{usuario.email}</p>}
           <p className="text-xs text-texto-suave">
             {usuario.ultimoAcesso ? `Último acesso: ${formatoData.format(new Date(usuario.ultimoAcesso))}` : "Ainda não entrou"}
           </p>

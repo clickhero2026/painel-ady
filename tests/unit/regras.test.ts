@@ -4,11 +4,11 @@ import { caminhoInternoSeguro, montarCsp } from "@/lib/seguranca";
 import { passouDoMaximo } from "@/lib/sessao";
 
 describe("papéis", () => {
-  it("barra lateral: Usuários só para admin", () => {
-    expect(navegacaoDoPapel("admin").map((i) => i.href)).toEqual(["/", "/usuarios"]);
-    for (const papel of ["suporte", "vendas", "leitura"] as const) {
-      expect(navegacaoDoPapel(papel).map((i) => i.href)).toEqual(["/"]);
-    }
+  it("barra lateral: Leads para admin, suporte e vendas; Usuários só para admin", () => {
+    expect(navegacaoDoPapel("admin").map((i) => i.href)).toEqual(["/", "/leads", "/usuarios"]);
+    expect(navegacaoDoPapel("suporte").map((i) => i.href)).toEqual(["/", "/leads"]);
+    expect(navegacaoDoPapel("vendas").map((i) => i.href)).toEqual(["/", "/leads"]);
+    expect(navegacaoDoPapel("leitura").map((i) => i.href)).toEqual(["/"]);
   });
 
   it("acesso às áreas", () => {

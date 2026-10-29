@@ -1,5 +1,5 @@
-import { recriarBanco } from "./banco";
+import { BANCO_TESTE, recriarBanco } from "./banco";
 
 export default async function setup() {
-  await recriarBanco();
+  await recriarBanco(BANCO_TESTE.dono);
 }

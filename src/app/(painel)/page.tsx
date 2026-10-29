@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ACESSO_ROTAS, ROTULO_PAPEL } from "@/lib/papeis";
+import { ACESSO_ROTAS, podeAcessar, ROTULO_PAPEL } from "@/lib/papeis";
 import { exigirUsuario } from "@/lib/sessao";
 
 export const metadata: Metadata = { title: "Início" };
@@ -17,12 +17,19 @@ export default async function Inicio() {
       </p>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <section className="rounded-2xl border border-borda bg-fundo p-6">
-          <h2 className="font-semibold">Leads do teste grátis</h2>
-          <p className="mt-2 text-sm text-texto-suave">
-            A lista de cadastros do teste de 7 dias, com responsável por lead, chega na próxima etapa.
-          </p>
-        </section>
+        {podeAcessar(usuario.papel, "leads") && (
+          <section className="rounded-2xl border border-borda bg-fundo p-6">
+            <h2 className="font-semibold">Leads do teste grátis</h2>
+            <p className="mt-2 text-sm text-texto-suave">
+              {usuario.papel === "vendas"
+                ? "Os cadastros dos quais você é responsável, com a ficha de cada um."
+                : "Todos os cadastros do teste de 7 dias, com a ficha de cada um."}
+            </p>
+            <Link href="/leads" className="mt-4 inline-flex min-h-11 items-center font-semibold text-petroleo-forte underline-offset-4 hover:underline">
+              Ver leads
+            </Link>
+          </section>
+        )}
         <section className="rounded-2xl border border-borda bg-fundo p-6">
           <h2 className="font-semibold">Indicadores</h2>
           <p className="mt-2 text-sm text-texto-suave">

@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
-import { House, LogOut, Menu, Users, X } from "lucide-react";
+import { ContactRound, House, LogOut, Menu, Users, X } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import type { ItemNavegacao } from "@/lib/papeis";
 
-const ICONES = { inicio: House, usuarios: Users } as const;
+const ICONES = { inicio: House, leads: ContactRound, usuarios: Users } as const;
 
 interface Props {
   itens: ItemNavegacao[];
@@ -74,7 +74,7 @@ export function BarraLateral({ itens, nome, papel, sair }: Props) {
         </ul>
       </nav>
       <div className="border-t border-borda px-4 py-4">
-        <p className="truncate text-sm font-medium" title={nome}>
+        <p className="text-sm font-medium wrap-anywhere">
           {nome}
         </p>
         <p className="text-xs text-texto-suave">{papel}</p>
@@ -95,7 +95,7 @@ export function BarraLateral({ itens, nome, papel, sair }: Props) {
     <>
       {/* Celular: barra de topo + gaveta */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-borda bg-fundo px-4 lg:hidden">
-        <Link href="/" aria-label="ady — início do painel">
+        <Link href="/" title="Início do painel">
           <Logo />
         </Link>
         <button
@@ -129,7 +129,7 @@ export function BarraLateral({ itens, nome, papel, sair }: Props) {
       <aside className="hidden w-64 shrink-0 border-r border-borda bg-fundo lg:block">
         <div className="sticky top-0 flex h-dvh flex-col">
           <div className="flex h-16 items-center border-b border-borda px-5">
-            <Link href="/" aria-label="ady — início do painel">
+            <Link href="/" title="Início do painel">
               <Logo />
             </Link>
           </div>

@@ -166,6 +166,9 @@ test.describe("sessão", () => {
     await entrar(page, EMAIL_DO_PAPEL.suporte);
     await sql("UPDATE painel_usuarios SET ativo = false WHERE email = $1", [EMAIL_DO_PAPEL.suporte]);
     await page.goto("/");
-    await expect(page).toHaveURL("/login");
+    // Com ?motivo=expirada quando um pré-carregamento de link chega antes e
+    // já encerrou a sessão; o que importa é cair no login, sem sessão.
+    await expect(page).toHaveURL(/\/login(\?motivo=expirada)?$/);
+    expect(await sql("SELECT 1 FROM painel_auth_session")).toHaveLength(0);
   });
 });

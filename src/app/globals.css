@@ -32,6 +32,10 @@
   --color-erro-suave: #fdecea;
   --color-sucesso: #0b6b3a;
   --color-sucesso-suave: #e6f4ec;
+  /* Amarelo do checklist: texto âmbar escuro (6,4:1 sobre o fundo suave).
+     Não é o laranja da marca, que fica só no símbolo. */
+  --color-atencao: #7a4a00;
+  --color-atencao-suave: #fdf3dc;
 }
 
 @layer base {

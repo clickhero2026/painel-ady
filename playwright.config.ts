@@ -7,13 +7,19 @@ import { defineConfig } from "@playwright/test";
  * Usa o Google Chrome instalado na máquina (channel: "chrome").
  */
 const PORTA = 3100;
-export const URL_E2E = "postgres://postgres:postgres@localhost:54329/painel_e2e";
+/** Banco local do e2e: o app conecta como painel_app (ver tests/banco.ts). */
+export const BANCO_E2E = {
+  dono: "postgres://postgres:postgres@localhost:54329/painel_e2e",
+  app: "postgres://painel_app:painel_app_local@localhost:54329/painel_e2e",
+};
+/** Tudo o que o servidor escreve (stdout e stderr): os testes procuram o token aqui. */
+export const LOG_SERVIDOR = ".e2e-servidor.log";
 
 export default defineConfig({
   testDir: "tests/e2e",
   workers: 1,
   fullyParallel: false,
-  timeout: 60_000,
+  timeout: 90_000,
   reporter: [["list"]],
   use: {
     baseURL: `http://localhost:${PORTA}`,
@@ -22,13 +28,13 @@ export default defineConfig({
     locale: "pt-BR",
   },
   webServer: {
-    command: `npx jiti tests/e2e/preparar-banco.ts && npx next build && npx next start -p ${PORTA}`,
+    command: `npx jiti tests/e2e/preparar-banco.ts && npx next build && npx next start -p ${PORTA} 2>&1 | tee ${LOG_SERVIDOR}`,
     url: `http://localhost:${PORTA}/login`,
     timeout: 300_000,
     reuseExistingServer: false,
     env: {
       NODE_ENV: "production",
-      DATABASE_URL: URL_E2E,
+      DATABASE_URL: BANCO_E2E.app,
       DATABASE_DRIVER: "pg",
       AUTH_SECRET: "segredo-de-e2e-com-mais-de-32-caracteres-abcdef",
       NEXT_PUBLIC_APP_URL: `http://localhost:${PORTA}`,

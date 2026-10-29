@@ -113,16 +113,4 @@ CREATE TABLE IF NOT EXISTS painel_auth_rate_limit (
 );
 
 -- ── Permissões do painel_app ──
--- O painel_app (criado à parte) só lê e escreve dados; não cria tabela.
--- Descomentar e rodar depois de criar o usuário. A leitura de
--- teste7d_inscricoes é pros próximos passos (telas de leads e indicadores).
---
--- GRANT SELECT, INSERT, UPDATE, DELETE ON
---   painel_usuarios, painel_lead_responsavel,
---   painel_auth_user, painel_auth_session, painel_auth_account,
---   painel_auth_verification, painel_auth_rate_limit
---   TO painel_app;
--- -- Auditoria: só acrescenta e lê (o app não apaga nem altera histórico).
--- GRANT SELECT, INSERT ON painel_auditoria TO painel_app;
--- GRANT USAGE ON SEQUENCE painel_auditoria_id_seq TO painel_app;
--- GRANT SELECT ON teste7d_inscricoes TO painel_app;
+-- Em db/grants/painel_app.sql (rodar depois desta migração).

@@ -2,7 +2,7 @@ import { readdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { criarAuth } from "@/lib/auth";
 import { pool } from "@/lib/db";
-import { limparTabelas } from "../banco";
+import { BANCO_TESTE, criarConsultaDono, limparTabelas } from "../banco";
 
 /** Ajudantes dos testes de integração: chamam o Better Auth por HTTP de verdade. */
 
@@ -26,9 +26,11 @@ export const auth = criarAuth({
 });
 
 export const db = () => pool();
+/** Dono do banco: pra montar dados (o app, como painel_app, não pode). */
+export const sqlDono = criarConsultaDono(BANCO_TESTE.dono);
 
 export async function limparTudo() {
-  await limparTabelas((sql) => pool().query(sql));
+  await limparTabelas((sql) => sqlDono(sql));
   await rm(PASTA_EMAILS, { recursive: true, force: true });
 }
 

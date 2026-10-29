@@ -8,6 +8,7 @@ import {
   limparTudo,
   pedirLink,
   sessao,
+  sqlDono,
   ultimoLink,
 } from "./apoio";
 
@@ -188,7 +189,7 @@ describe("Google", () => {
 
 describe("PAINEL_ADMIN_INICIAL", () => {
   it("com a tabela vazia, cria o primeiro admin na primeira tentativa de login", async () => {
-    await db().query("TRUNCATE painel_usuarios CASCADE");
+    await sqlDono("TRUNCATE painel_usuarios CASCADE");
     await pedirLink(ADMIN_INICIAL.toUpperCase());
     const { rows } = await db().query("SELECT email, papel, ativo FROM painel_usuarios");
     expect(rows).toEqual([{ email: ADMIN_INICIAL, papel: "admin", ativo: true }]);
@@ -197,13 +198,13 @@ describe("PAINEL_ADMIN_INICIAL", () => {
   });
 
   it("com a tabela vazia, também vale pelo Google", async () => {
-    await db().query("TRUNCATE painel_usuarios CASCADE");
+    await sqlDono("TRUNCATE painel_usuarios CASCADE");
     const login = await entrarComGoogle(ADMIN_INICIAL);
     expect((await sessao(login.cookie))?.session.papel).toBe("admin");
   });
 
   it("com a tabela vazia, outro e-mail não vira admin", async () => {
-    await db().query("TRUNCATE painel_usuarios CASCADE");
+    await sqlDono("TRUNCATE painel_usuarios CASCADE");
     await pedirLink("outra.pessoa@vendedormestre.com.br");
     const { rows } = await db().query("SELECT 1 FROM painel_usuarios");
     expect(rows).toHaveLength(0);

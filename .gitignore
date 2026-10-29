@@ -45,3 +45,4 @@ next-env.d.ts
 /.dev-emails/
 /test-results/
 /playwright-report/
+/.e2e-servidor.log
