@@ -23,7 +23,7 @@ const PONTOS_RELEVANTES = Math.round(DIFERENCA_RELEVANTE * 100);
 export default async function PaginaPerfil({ searchParams }: PageProps<"/perfil">) {
   const usuario = await exigirUsuario(ACESSO_ROTAS.perfil);
   const filtros = lerFiltrosFunil(await searchParams);
-  const [perfil, opcoes] = await Promise.all([perfilDosLeads(filtros, usuario.papel), opcoesDoFunil()]);
+  const [perfil, opcoes] = await Promise.all([perfilDosLeads(filtros, usuario.papel), opcoesDoFunil(usuario.papel)]);
   const vazio = perfil.cadastros === 0;
 
   return (

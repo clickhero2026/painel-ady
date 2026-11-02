@@ -31,6 +31,7 @@ export function Recorte(props: { caminho: string; rotulo: string; filtros: Filtr
       </nav>
 
       <form method="get" action={caminho} aria-label={props.rotulo} className="mt-4">
+        {filtros.vo !== "completa" && <input type="hidden" name="vo" value={filtros.vo} />}
         <details open={cortesAtivos > 0 || filtros.periodo === "personalizado"} className="rounded-2xl border border-borda bg-fundo">
           <summary className="flex min-h-11 cursor-pointer items-center px-4 font-medium">
             Período e cortes{cortesAtivos > 0 ? ` (${cortesAtivos} ${cortesAtivos === 1 ? "ativo" : "ativos"})` : ""}
@@ -65,7 +66,7 @@ export function Recorte(props: { caminho: string; rotulo: string; filtros: Filtr
         </details>
       </form>
 
-      <p className="mt-4 text-sm text-texto-suave" aria-live="polite">
+      <p className="mt-4 text-sm wrap-anywhere text-texto-suave" aria-live="polite">
         {descreverRecorte(filtros)}
       </p>
     </>

@@ -63,7 +63,7 @@ test("sem login: tela vai pro login e API dá 401", async ({ page }) => {
 test("avisos: Agendou subestimado, sem dados de reunião e amostra pequena", async ({ page }) => {
   await entrar(page, EMAIL_DO_PAPEL.vendas);
   await page.goto("/funil?periodo=tudo");
-  await expect(page.getByText("“Agendou” pode estar subestimado")).toBeVisible();
+  await expect(page.getByText("“Agendou” pode estar subestimado").first()).toBeVisible();
   await expect(page.getByText("Sem dados de reunião neste recorte")).toBeVisible();
   // 30 cadastros no total: não é amostra pequena (o limite é "menos de 30")...
   await expect(page.getByText(/^Amostra pequena:/)).toHaveCount(0);

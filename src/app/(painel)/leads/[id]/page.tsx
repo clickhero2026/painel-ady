@@ -161,9 +161,11 @@ export default async function PaginaFicha({ params }: PageProps<"/leads/[id]">) 
           <Campos
             linhas={[
               ["Criativo", lead.utm_content],
-              ["Campanha", lead.utm_campaign],
+              ["Campanha (utm_campaign)", lead.utm_campaign],
               ["Versão do título", lead.lp_variant],
-              ["Fonte / meio", [lead.utm_source, lead.utm_medium].filter(Boolean).join(" / ") || null],
+              ["Fonte (utm_source)", lead.utm_source],
+              ["Meio (utm_medium)", lead.utm_medium],
+              ["Página de entrada", lead.pagina_entrada],
               ["Data do cadastro", formatarDataHora(lead.created_at)],
             ]}
           />

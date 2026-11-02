@@ -51,6 +51,8 @@ export const ACESSO_ROTAS = {
   funil: PAPEIS,
   /** CSV da tabela comparativa do funil. */
   exportarFunil: ["admin"],
+  /** CSV da tabela de origem. */
+  exportarOrigem: ["admin"],
   /** Perfil estatístico (só agregados; "leitura" com células pequenas ocultas, ver perfil.ts). */
   perfil: PAPEIS,
   usuarios: ["admin"],

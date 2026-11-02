@@ -19,13 +19,13 @@ const MENSAGEM: Record<Estado, string> = {
  * no-referrer o navegador manda `Origin: null` num POST de formulário, e a
  * rota só aceita a origem do painel.
  */
-export function ExportarCsv({ parametros }: { parametros: string }) {
+export function ExportarCsv({ parametros, rota = "/api/funil/exportar", rotulo = "Exportar CSV" }: { parametros: string; rota?: string; rotulo?: string }) {
   const [estado, setEstado] = useState<Estado>("parado");
 
   async function exportar() {
     setEstado("baixando");
     try {
-      const resposta = await fetch("/api/funil/exportar", {
+      const resposta = await fetch(rota, {
         method: "POST",
         body: new URLSearchParams(parametros),
         cache: "no-store",
@@ -48,7 +48,7 @@ export function ExportarCsv({ parametros }: { parametros: string }) {
     <div className="flex flex-col items-start gap-1 sm:items-end">
       <button type="button" onClick={exportar} disabled={estado === "baixando"} className={botao.secundario}>
         <Download size={18} aria-hidden="true" />
-        {estado === "baixando" ? "Exportando…" : "Exportar CSV"}
+        {estado === "baixando" ? "Exportando…" : rotulo}
       </button>
       <p role="status" className={`text-sm ${estado === "erro" ? "text-erro" : "text-sucesso"}`}>
         {MENSAGEM[estado]}

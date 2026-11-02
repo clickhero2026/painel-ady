@@ -34,6 +34,10 @@ export const ORDENS_TABELA = [
 ] as const;
 export type OrdemTabela = (typeof ORDENS_TABELA)[number];
 
+/** Visões da tabela de origem. */
+export const VISOES_ORIGEM = ["completa", "source", "source_medium", "campaign"] as const;
+export type VisaoOrigem = (typeof VISOES_ORIGEM)[number];
+
 export interface FiltrosFunil {
   /** Atalho escolhido; "personalizado" quando `de` ou `ate` vieram na URL. */
   periodo: Periodo | "personalizado";
@@ -50,13 +54,18 @@ export interface FiltrosFunil {
   dc: "asc" | "desc";
   ov: OrdemTabela;
   dv: "asc" | "desc";
+  /** Tabela de origem: visão, ordem e página. */
+  vo: VisaoOrigem;
+  oo: OrdemTabela;
+  odo: "asc" | "desc";
+  po: number;
 }
 
 const data = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .refine((v) => !Number.isNaN(Date.parse(v)));
-const texto = z.string().trim().min(1).max(200);
+const texto = z.string().trim().min(1).max(255);
 const direcao = z.enum(["asc", "desc"]);
 
 const campos = {
@@ -72,6 +81,10 @@ const campos = {
   dc: direcao,
   ov: z.enum(ORDENS_TABELA),
   dv: direcao,
+  vo: z.enum(VISOES_ORIGEM),
+  oo: z.enum(ORDENS_TABELA),
+  odo: direcao,
+  po: z.coerce.number().int().min(1).max(100_000),
 };
 
 type Entrada = Record<string, string | string[] | undefined> | URLSearchParams;
@@ -131,6 +144,10 @@ export function lerFiltrosFunil(entrada: Entrada, agora = new Date()): FiltrosFu
     dc: (lido.dc as "asc" | "desc") ?? (lido.oc ? "asc" : "desc"),
     ov: (lido.ov as OrdemTabela) ?? "grupo",
     dv: (lido.dv as "asc" | "desc") ?? "asc",
+    vo: (lido.vo as VisaoOrigem) ?? "completa",
+    oo: (lido.oo as OrdemTabela) ?? "cadastros",
+    odo: (lido.odo as "asc" | "desc") ?? (lido.oo ? "asc" : "desc"),
+    po: (lido.po as number) ?? 1,
   };
 }
 
@@ -155,6 +172,10 @@ export function parametrosDoFunil(
     if (chave === "dc" && v === "desc" && todos.oc === "cadastros") continue;
     if (chave === "ov" && v === "grupo" && todos.dv === "asc") continue;
     if (chave === "dv" && v === "asc" && todos.ov === "grupo") continue;
+    if (chave === "vo" && v === "completa") continue;
+    if (chave === "oo" && v === "cadastros" && todos.odo === "desc") continue;
+    if (chave === "odo" && v === "desc" && todos.oo === "cadastros") continue;
+    if (chave === "po" && Number(v) === 1) continue;
     p.set(chave, String(v));
   }
   return p;

@@ -1,6 +1,8 @@
 import { pool } from "./db";
 import type { FiltrosFunil } from "./filtrosFunil";
-import { AGENDOU, ATIVOU, condicoes, TELAS_DA_ATIVACAO } from "./funil";
+import { AGENDOU, ATIVOU, condicoes, MINIMO_LEITURA, TELAS_DA_ATIVACAO } from "./funil";
+
+export { MINIMO_LEITURA };
 import type { Papel } from "./papeis";
 import { MAPAS_DE_RESPOSTA, type CampoDeResposta } from "./respostas";
 import { Parametros } from "./sql";
@@ -64,8 +66,6 @@ const TEXTOS_LIVRES = [
 export const AMOSTRA_MINIMA_GRUPO = 30;
 /** Diferença destacada na comparação (só com amostra suficiente nos dois grupos). */
 export const DIFERENCA_RELEVANTE = 0.1;
-/** Papel "leitura": células com menos pessoas que isto ficam ocultas. */
-export const MINIMO_LEITURA = 5;
 /** Termo de texto livre só aparece com pelo menos tantas pessoas (os demais vão para "outros"). */
 export const MINIMO_TERMO = 2;
 export const TERMOS_NO_TOPO = 20;
@@ -153,7 +153,16 @@ export interface PerfilDosLeads {
  * identifica ninguém). Com `minimo` 0, nada fica oculto.
  */
 export function celulasOcultas(celulas: number[], minimo: number): boolean[] {
-  const oculta = celulas.map((n) => n > 0 && n < minimo);
+  return completarOcultas(
+    celulas,
+    celulas.map((n) => n > 0 && n < minimo),
+    minimo,
+  );
+}
+
+/** A parte de `celulasOcultas` que protege contra a subtração, a partir de uma marcação inicial. */
+export function completarOcultas(celulas: number[], inicial: boolean[], minimo: number): boolean[] {
+  const oculta = [...inicial];
   const somaOculta = () => celulas.reduce((s, n, k) => s + (oculta[k] ? n : 0), 0);
   while (somaOculta() > 0 && somaOculta() < minimo) {
     let menor = -1;

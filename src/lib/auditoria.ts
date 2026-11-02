@@ -17,6 +17,7 @@ export type AcaoAuditoria =
   | "ver_lead"
   | "copiar_link"
   | "exportar_funil"
+  | "exportar_origem"
   | "atribuir_lead"
   | "marcar_realizada"
   | "marcar_nao_compareceu"

@@ -223,6 +223,8 @@ export interface Ficha {
   utm_content: string | null;
   utm_term: string | null;
   lp_variant: string | null;
+  /** Só o caminho da página de entrada: a URL inteira pode trazer dado pessoal na query. */
+  pagina_entrada: string | null;
   negocio_nome_oferta: string | null;
   cidade_bairro: string | null;
   atende_todo_brasil: boolean | null;
@@ -247,13 +249,23 @@ export interface Ficha {
 
 /** Colunas da ficha. Fora de propósito: ip_hash, user_agent, fbclid e o token. */
 const COLUNAS_FICHA = `i.id, i.created_at, i.nome, i.email, i.whatsapp,
-  i.utm_source, i.utm_medium, i.utm_campaign, i.utm_content, i.utm_term, i.lp_variant,
+  i.utm_source, i.utm_medium, i.utm_campaign, i.utm_content, i.utm_term, i.lp_variant, i.landing_url,
   i.negocio_nome_oferta, i.cidade_bairro, i.atende_todo_brasil, i.acao_desejada, i.acao_desejada_outro,
   i.experiencia_anuncios, i.acesso_redes, i.conta_anuncios, i.cartao_pagamento, i.arquivo_logo,
   i.reuniao_computador, i.observacoes, i.etapa2_concluida_em,
   i.agendado_em, i.reuniao_em, i.realizada_em, i.status, i.ultima_retomada_em,
   CASE WHEN ${RESPONSAVEL_VALIDO} THEN ru.id END AS responsavel_id,
   CASE WHEN ${RESPONSAVEL_VALIDO} THEN coalesce(ru.nome, ru.email) END AS responsavel_nome`;
+
+/** Caminho de uma URL, sem host, query string nem fragmento; null se não for URL. */
+export function caminhoDaUrl(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Ficha de um lead, ou null se ele não existe OU não é visível para
@@ -263,11 +275,16 @@ const COLUNAS_FICHA = `i.id, i.created_at, i.nome, i.email, i.whatsapp,
 export async function abrirFicha(usuario: QuemConsulta, id: string, via: "tela" | "api"): Promise<Ficha | null> {
   if (!UUID.test(id)) return null;
   const p = new Parametros();
-  const { rows } = await pool().query<Ficha>(
+  const { rows } = await pool().query<Omit<Ficha, "pagina_entrada"> & { landing_url: string | null }>(
     `SELECT ${COLUNAS_FICHA} FROM ${ORIGEM} WHERE ${leadsVisiveis(usuario, p)} AND i.id = ${p.add(id)}`,
     p.valores,
   );
-  const ficha = rows[0] ?? null;
+  const linha = rows[0];
+  let ficha: Ficha | null = null;
+  if (linha) {
+    const { landing_url, ...resto } = linha;
+    ficha = { ...resto, pagina_entrada: caminhoDaUrl(landing_url) };
+  }
   if (ficha) await registrarAuditoria({ usuarioId: usuario.id, acao: "ver_lead", leadId: id, detalhe: { via } });
   return ficha;
 }

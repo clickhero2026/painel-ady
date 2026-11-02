@@ -1,5 +1,6 @@
 import { pool } from "./db";
 import { hojeEmSaoPaulo, somarDias, type FiltrosFunil, type OrdemTabela } from "./filtrosFunil";
+import type { Papel } from "./papeis";
 import { FUSO_SQL, Parametros } from "./sql";
 
 /**
@@ -24,6 +25,9 @@ import { FUSO_SQL, Parametros } from "./sql";
  */
 
 /** Etapas, como condição SQL sobre `teste7d_inscricoes i` (usadas também pelo perfil). */
+/** Papel "leitura": linhas e células com menos cadastros que isto ficam ocultas (perfil e origem). */
+export const MINIMO_LEITURA = 5;
+
 export const ATIVOU = "i.etapa2_concluida_em IS NOT NULL";
 export const AGENDOU = "i.agendado_em IS NOT NULL";
 const REALIZADA = "(i.status = 'realizado' OR i.realizada_em IS NOT NULL)";
@@ -42,6 +46,43 @@ const mediana = (fim: string, inicio: string) =>
 
 const DIA_SP = `(i.created_at AT TIME ZONE '${FUSO_SQL}')::date`;
 
+// ── Normalização da origem (utm_source, utm_medium, utm_campaign) ──
+
+/** Rótulo de quem não tem o campo: nulo ou vazio nunca é descartado. */
+export const SEM_ORIGEM = "(sem origem)";
+/** Tamanho máximo do valor de origem (o site já corta em 255). */
+export const MAX_ORIGEM = 255;
+/** Espaços explícitos: `\\s` do Postgres depende do locale do banco. */
+const ESPACOS = String.raw`[\s\u00A0\u1680\u2000-\u200B\u2028\u2029\u202F\u205F\u3000\uFEFF]+`;
+
+/**
+ * ÚNICA definição de origem normalizada: minúsculas, sem espaços nas pontas,
+ * espaços internos colapsados; nulo ou vazio vira "(sem origem)". Fica em
+ * SQL e é aplicada também ao valor do filtro, então a linha da tabela e o
+ * corte nunca divergem (nem em letras acentuadas, que dependem do locale).
+ */
+export function origemNormalizada(expressao: string): string {
+  return `left(coalesce(nullif(btrim(regexp_replace(lower(${expressao}), '${ESPACOS}', ' ', 'g')), ''), '${SEM_ORIGEM}'), ${MAX_ORIGEM})`;
+}
+
+export const SOURCE = origemNormalizada("i.utm_source");
+export const MEDIUM = origemNormalizada("i.utm_medium");
+export const CAMPAIGN = origemNormalizada("i.utm_campaign");
+
+/** O que aparece no lugar de um valor de UTM que traz dado pessoal. */
+export const ORIGEM_MASCARADA = "(valor com dado pessoal)";
+
+const PARECE_PESSOAL = [
+  /[^\s@]+@[^\s@]+\.[^\s@]+/, // e-mail
+  /(?<!\d)(?:55)?\d{2}9?\d{8}(?!\d)/, // telefone do Brasil (ids de anúncio do Meta têm 15+ dígitos)
+  /(?<![0-9a-f])[0-9a-f]{32}(?![0-9a-f])/, // token de retomada
+];
+
+/** UTM vem de qualquer link: e-mail, telefone ou token nele não sai do servidor. */
+export function mascararOrigem(valor: string): string {
+  return PARECE_PESSOAL.some((r) => r.test(valor)) ? ORIGEM_MASCARADA : valor;
+}
+
 /** Condições SQL dos cortes (todas sobre `teste7d_inscricoes i`). */
 export function condicoes(f: FiltrosFunil, p: Parametros): string {
   const where = ["TRUE"];
@@ -49,9 +90,9 @@ export function condicoes(f: FiltrosFunil, p: Parametros): string {
   if (f.de) where.push(`i.created_at >= (${p.add(f.de)}::date::timestamp AT TIME ZONE '${FUSO_SQL}')`);
   if (f.ate) where.push(`i.created_at < ((${p.add(f.ate)}::date + 1)::timestamp AT TIME ZONE '${FUSO_SQL}')`);
   if (f.criativo) where.push(`i.utm_content = ${p.add(f.criativo)}`);
-  if (f.campanha) where.push(`i.utm_campaign = ${p.add(f.campanha)}`);
-  if (f.origem) where.push(`i.utm_source = ${p.add(f.origem)}`);
-  if (f.midia) where.push(`i.utm_medium = ${p.add(f.midia)}`);
+  if (f.campanha) where.push(`${CAMPAIGN} = ${origemNormalizada(`${p.add(f.campanha)}::text`)}`);
+  if (f.origem) where.push(`${SOURCE} = ${origemNormalizada(`${p.add(f.origem)}::text`)}`);
+  if (f.midia) where.push(`${MEDIUM} = ${origemNormalizada(`${p.add(f.midia)}::text`)}`);
   if (f.versao) where.push(`i.lp_variant = ${p.add(f.versao)}`);
   return where.join(" AND ");
 }
@@ -275,15 +316,26 @@ async function abandono(f: FiltrosFunil): Promise<IndicadoresFunil["abandono"]> 
 
 // ── Ordenação das tabelas ──
 
-function valorDaOrdem(l: LinhaComparativa, ordem: OrdemTabela): string | number | null {
+/** O que uma linha precisa ter para ser ordenada (comparativo e origem). */
+export interface LinhaOrdenavel {
+  grupo: string | null;
+  cadastros: number | null;
+  ativacoes: number | null;
+  agendamentos: number | null;
+  realizadas?: number | null;
+  taxas: { ativacao: number | null; agendamento: number | null; geral: number | null };
+}
+
+function valorDaOrdem(l: LinhaOrdenavel, ordem: OrdemTabela): string | number | null {
   switch (ordem) {
     case "grupo":
       return l.grupo;
     case "cadastros":
     case "ativacoes":
     case "agendamentos":
-    case "realizadas":
       return l[ordem];
+    case "realizadas":
+      return l.realizadas ?? null;
     case "taxa_ativacao":
       return l.taxas.ativacao;
     case "taxa_agendamento":
@@ -294,9 +346,9 @@ function valorDaOrdem(l: LinhaComparativa, ordem: OrdemTabela): string | number 
 }
 
 /** Ordena as linhas; "sem dados" e grupo vazio sempre por último, empate pelo nome. */
-export function ordenarLinhas(linhas: LinhaComparativa[], ordem: OrdemTabela, dir: "asc" | "desc"): LinhaComparativa[] {
+export function ordenarLinhas<T extends LinhaOrdenavel>(linhas: T[], ordem: OrdemTabela, dir: "asc" | "desc"): T[] {
   const sinal = dir === "asc" ? 1 : -1;
-  const nome = (l: LinhaComparativa) => l.grupo ?? "";
+  const nome = (l: T) => l.grupo ?? "";
   return [...linhas].sort((a, b) => {
     const va = valorDaOrdem(a, ordem);
     const vb = valorDaOrdem(b, ordem);
@@ -336,19 +388,30 @@ export interface OpcoesDoFunil {
   midias: string[];
 }
 
-/** Valores existentes de cada corte (de todos os cadastros). */
-export async function opcoesDoFunil(): Promise<OpcoesDoFunil> {
-  const distintos = async (coluna: string) =>
+/**
+ * Valores existentes de cada corte (de todos os cadastros). Campanha, origem
+ * e mídia já normalizadas. Para "leitura", valor de poucos cadastros não
+ * aparece na lista: o nome de uma origem rara não sai por aqui.
+ */
+export async function opcoesDoFunil(papel: Papel): Promise<OpcoesDoFunil> {
+  const minimo = papel === "leitura" ? MINIMO_LEITURA : 1;
+  const distintos = async (expressao: string) =>
     (
       await pool().query<{ v: string }>(
-        `SELECT DISTINCT ${coluna} AS v FROM teste7d_inscricoes WHERE ${coluna} IS NOT NULL ORDER BY 1 LIMIT 500`,
+        `SELECT ${expressao} AS v FROM teste7d_inscricoes i GROUP BY 1 HAVING count(*) >= ${minimo} ORDER BY 1 LIMIT 500`,
       )
-    ).rows.map((r) => r.v);
+    ).rows
+      .map((r) => r.v)
+      .filter((v) => mascararOrigem(v) === v);
   const [criativos, campanhas, origens, midias] = await Promise.all([
-    distintos("utm_content"),
-    distintos("utm_campaign"),
-    distintos("utm_source"),
-    distintos("utm_medium"),
+    (
+      await pool().query<{ v: string }>(
+        "SELECT DISTINCT utm_content AS v FROM teste7d_inscricoes WHERE utm_content IS NOT NULL ORDER BY 1 LIMIT 500",
+      )
+    ).rows.map((r) => r.v),
+    distintos(CAMPAIGN),
+    distintos(SOURCE),
+    distintos(MEDIUM),
   ]);
   return { criativos, campanhas, origens, midias };
 }
@@ -356,10 +419,10 @@ export async function opcoesDoFunil(): Promise<OpcoesDoFunil> {
 // ── CSV da tabela comparativa ──
 
 /** Célula de CSV: aspas quando preciso e sem fórmula (utm vem de qualquer link). */
-function celula(v: string | number | null): string {
+export function celula(v: string | number | null): string {
   if (v === null) return "";
   let t = typeof v === "number" ? String(v).replace(".", ",") : v;
-  if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`;
+  if (/^[=+\-@\t\r＝＋－＠]/.test(t)) t = `'${t}`;
   return /[";\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
 }
 
