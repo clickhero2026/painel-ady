@@ -1,4 +1,5 @@
 import { pool } from "./db";
+import { NAO_MESCLADO } from "./escopo";
 import { hojeEmSaoPaulo, somarDias, type FiltrosFunil, type OrdemTabela } from "./filtrosFunil";
 import type { Papel } from "./papeis";
 import { FUSO_SQL, Parametros } from "./sql";
@@ -21,7 +22,8 @@ import { FUSO_SQL, Parametros } from "./sql";
  * números de reunião voltam null ("sem dados"), nunca zero.
  *
  * Só agregados: nenhuma coluna de dado pessoal é lida aqui. Os cortes são
- * globais (não dependem do papel nem do responsável pelo lead).
+ * globais (não dependem do papel nem do responsável pelo lead). Cadastros
+ * mesclados em outro ficam fora de tudo (`condicoes` aplica NAO_MESCLADO).
  */
 
 /** Etapas, como condição SQL sobre `teste7d_inscricoes i` (usadas também pelo perfil). */
@@ -85,7 +87,8 @@ export function mascararOrigem(valor: string): string {
 
 /** Condições SQL dos cortes (todas sobre `teste7d_inscricoes i`). */
 export function condicoes(f: FiltrosFunil, p: Parametros): string {
-  const where = ["TRUE"];
+  // Cadastro mesclado em outro não conta em lugar nenhum (escopo.ts).
+  const where = [NAO_MESCLADO];
   // Limites do dia em São Paulo, convertidos pra instante: usa o índice de created_at.
   if (f.de) where.push(`i.created_at >= (${p.add(f.de)}::date::timestamp AT TIME ZONE '${FUSO_SQL}')`);
   if (f.ate) where.push(`i.created_at < ((${p.add(f.ate)}::date + 1)::timestamp AT TIME ZONE '${FUSO_SQL}')`);
@@ -398,7 +401,7 @@ export async function opcoesDoFunil(papel: Papel): Promise<OpcoesDoFunil> {
   const distintos = async (expressao: string) =>
     (
       await pool().query<{ v: string }>(
-        `SELECT ${expressao} AS v FROM teste7d_inscricoes i GROUP BY 1 HAVING count(*) >= ${minimo} ORDER BY 1 LIMIT 500`,
+        `SELECT ${expressao} AS v FROM teste7d_inscricoes i WHERE ${NAO_MESCLADO} GROUP BY 1 HAVING count(*) >= ${minimo} ORDER BY 1 LIMIT 500`,
       )
     ).rows
       .map((r) => r.v)
@@ -406,7 +409,8 @@ export async function opcoesDoFunil(papel: Papel): Promise<OpcoesDoFunil> {
   const [criativos, campanhas, origens, midias] = await Promise.all([
     (
       await pool().query<{ v: string }>(
-        "SELECT DISTINCT utm_content AS v FROM teste7d_inscricoes WHERE utm_content IS NOT NULL ORDER BY 1 LIMIT 500",
+        `SELECT DISTINCT i.utm_content AS v FROM teste7d_inscricoes i
+          WHERE i.utm_content IS NOT NULL AND ${NAO_MESCLADO} ORDER BY 1 LIMIT 500`,
       )
     ).rows.map((r) => r.v),
     distintos(CAMPAIGN),

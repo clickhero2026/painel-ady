@@ -3,11 +3,32 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
-import { CalendarCheck, ChartColumn, ChartPie, ContactRound, House, LogOut, Menu, Users, X } from "lucide-react";
+import {
+  CalendarCheck,
+  ChartColumn,
+  ChartPie,
+  ContactRound,
+  CopyCheck,
+  House,
+  LogOut,
+  Menu,
+  SquareKanban,
+  Users,
+  X,
+} from "lucide-react";
 import { Logo } from "@/components/Logo";
 import type { ItemNavegacao } from "@/lib/papeis";
 
-const ICONES = { inicio: House, leads: ContactRound, reunioes: CalendarCheck, funil: ChartColumn, perfil: ChartPie, usuarios: Users } as const;
+const ICONES = {
+  inicio: House,
+  leads: ContactRound,
+  pipeline: SquareKanban,
+  duplicados: CopyCheck,
+  reunioes: CalendarCheck,
+  funil: ChartColumn,
+  perfil: ChartPie,
+  usuarios: Users,
+} as const;
 
 interface Props {
   itens: ItemNavegacao[];

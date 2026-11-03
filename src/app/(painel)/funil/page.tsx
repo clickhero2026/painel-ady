@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ExportarCsv } from "@/components/funil/ExportarCsv";
+import { BlocoComercial } from "@/components/funil/BlocoComercial";
 import { BlocoOrigem } from "@/components/funil/BlocoOrigem";
 import { GraficoFunil, GraficoSerie } from "@/components/funil/GraficosCarregados";
 import { Recorte } from "@/components/funil/Recorte";
@@ -8,6 +9,7 @@ import { Aviso } from "@/components/ui/Aviso";
 import { AMOSTRA_MINIMA, lerFiltrosFunil, parametrosDoFunil, urlDoFunil, type FiltrosFunil, type OrdemTabela } from "@/lib/filtrosFunil";
 import { formatarDia, formatarDuracao, formatarNumero, formatarPercentual } from "@/lib/formatos";
 import { indicadoresDoFunil, opcoesDoFunil, taxa, type IndicadoresFunil, type LinhaComparativa } from "@/lib/funil";
+import { funilComercial } from "@/lib/funilComercial";
 import { origemDosLeads } from "@/lib/origem";
 import { ACESSO_ROTAS, podeAcessar } from "@/lib/papeis";
 import { exigirUsuario } from "@/lib/sessao";
@@ -19,10 +21,11 @@ const SEM_DADOS = "sem dados";
 export default async function PaginaFunil({ searchParams }: PageProps<"/funil">) {
   const usuario = await exigirUsuario(ACESSO_ROTAS.funil);
   const filtros = lerFiltrosFunil(await searchParams);
-  const [ind, opcoes, origem] = await Promise.all([
+  const [ind, opcoes, origem, comercial] = await Promise.all([
     indicadoresDoFunil(filtros),
     opcoesDoFunil(usuario.papel),
     origemDosLeads(filtros, usuario.papel),
+    funilComercial(filtros, usuario.papel),
   ]);
   const { resumo } = ind;
 
@@ -106,6 +109,8 @@ export default async function PaginaFunil({ searchParams }: PageProps<"/funil">)
       </section>
 
       <BlocoOrigem origem={origem} filtros={filtros} podeExportar={podeAcessar(usuario.papel, "exportarOrigem")} />
+
+      <BlocoComercial dados={comercial} />
 
       {!vazio && <Abandono ind={ind} />}
     </div>

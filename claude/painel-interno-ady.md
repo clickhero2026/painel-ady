@@ -28,7 +28,7 @@ Um app **interno**, em subdomínio próprio (`painel.useady.com.br`), com login 
 2. **Vendas:** estudar o perfil de cada lead antes de iniciar o relacionamento e buscar o fechamento. Cada vendedor vê só os seus leads.
 3. **Gestão e marketing:** indicadores do funil por criativo, campanha e versão do título, e estatísticas do perfil dos leads.
 
-**Não é um CRM.** A empresa já tem um CRM rodando em paralelo (Bitrix24 no plano gratuito, sem webhook nem API para criar lead de fora). O painel não guarda notas, status comercial nem funil de vendas. A única informação de gestão que ele precisa é **quem é o responsável por cada lead** (para a regra "cada vendedor vê só os seus") e a marcação de reunião realizada ou não.
+**Pipeline comercial simples, sem integração com o Bitrix24.** Desde 03/11/2026 o painel tem um pipeline comercial próprio: etapa comercial por lead (com histórico), anotações internas da equipe e mescla de cadastros duplicados. Além disso, guarda **quem é o responsável por cada lead** (para a regra "cada vendedor vê só os seus") e a marcação de reunião realizada ou não. A etapa comercial é independente da situação do teste (coluna `status`, preenchida pelo site): uma não escreve na outra. O Bitrix24 (plano gratuito, sem webhook nem API para criar lead de fora) continua à parte: o painel não lê nem escreve nele.
 
 ## 2. O que já existe
 
@@ -80,7 +80,7 @@ Como o funil aparece nos dados:
 | Login | Google. A equipe usa Google Workspace, **exceto 2 pessoas (que serão admins)**. Por isso: lista de usuários autorizados por **e-mail** (não por domínio) e, como segunda via, **link mágico por e-mail via SendGrid** (a empresa já tem conta). Quem não está na lista, ou está desativado, não entra por nenhum dos dois métodos. |
 | Papéis | `admin`, `suporte`, `vendas`, `leitura` |
 | Visibilidade | **Vendedor vê só os leads dos quais é responsável.** Admin vê todos. Suporte vê todos. Leitura vê só números agregados, sem dados pessoais. |
-| Escopo | Sem CRM: sem notas, status comercial ou funil de vendas. Há responsável por lead e a marcação de reunião realizada ou não. |
+| Escopo | Pipeline comercial simples (etapa comercial, anotações internas e mescla de duplicados), responsável por lead e marcação de reunião realizada ou não. Sem integração com o Bitrix24. Ver seção 13, decisões de 03/11/2026. |
 | Prioridade | Fase 1 com fichas dos leads e funil, nessa ordem. |
 | Visual | Identidade do ady: tema claro, Gantari, petróleo `#1E88A8` e `#17708A`, laranja `#CF6F03` só como detalhe pequeno. Área interna: clareza antes de enfeite. |
 
@@ -170,11 +170,19 @@ Como o funil aparece nos dados:
 | Link de ativação | sim | sim | só dos seus | não |
 | Marcar realizada ou não compareceu | sim | sim | não | não |
 | Atribuir responsável | sim | não | não | não |
+| Ver etapa comercial e histórico (ficha e pipeline) | todos | todos | só os seus | não |
+| Mudar etapa comercial | todos | não (só vê) | só os seus | não |
+| Anotações internas (ler e escrever; sem editar nem apagar) | todos | todos | só os seus | não |
+| Mesclar e desfazer mescla; "Possíveis duplicados" | sim | não | não | não |
+| Tela Pipeline (quadro e lista) | todos, com filtro por responsável | todos, só leitura | só os seus (sem os sem responsável) | não |
+| Funil comercial (agregados) | sim, com corte por responsável | sim, com corte por responsável | sim, sem corte por responsável | sim, sem corte por responsável e com células de 1 a 4 ocultas |
 | Indicadores e perfil agregados | sim | sim | sim (padrão sugerido) | sim, sem dados pessoais |
 | Usuários e auditoria | sim | não | não | não |
 | Exportar CSV | sim | não | não | não |
 
 A restrição por papel e por responsável deve ser aplicada **no acesso a dados do servidor**, em uma função única (por exemplo `leadsVisiveis(usuario)`), e não só escondendo itens na interface. Teste obrigatório: um vendedor não consegue ler a ficha de um lead alheio nem pela URL direta nem pela API.
+
+Etapa, anotações e mescla passam pela mesma `leadsVisiveis`: o que não é do vendedor responde 404; papel sem a permissão responde 403. Cadastros mesclados em outro somem de todas as listas e contagens por uma condição central (`src/lib/escopo.ts`). Cada ação nova grava auditoria: `mudar_etapa`, `anotar_lead` (sem o texto), `mesclar_leads`, `desfazer_mescla`.
 
 ## 8. Segurança e LGPD (requisitos)
 
@@ -433,7 +441,7 @@ Decisões por conta própria e o que depende de mim. Commit local no branch atua
 
 ## 12. Fora do escopo
 
-CRM (notas, status comercial, funil de vendas), cobrança, integração de pagamento, e qualquer alteração no site público ou na LP. Se uma mudança no site for necessária (por exemplo, o webhook do Calendly), tratar em prompt separado, no repositório do site.
+Integração com o Bitrix24 (ler ou escrever), cobrança, integração de pagamento, e qualquer alteração no site público ou na LP. O pipeline comercial do painel é simples de propósito: sem tarefas, lembretes, agenda, propostas, valores de negócio nem automações. Anotações não são editadas nem apagadas (regra atual). Se uma mudança no site for necessária (por exemplo, o webhook do Calendly), tratar em prompt separado, no repositório do site.
 
 ## 13. Decisões fechadas em 28/10/2026
 
@@ -443,3 +451,18 @@ CRM (notas, status comercial, funil de vendas), cobrança, integração de pagam
 4. Indicadores para vendas: agregados globais, sem dados pessoais.
 5. LGPD (retenção e base legal): tratada pelo Rafael fora deste projeto.
 6. Estrutura de pastas: o repositório do site fica em ../site, ao lado do painel.
+
+## 13.1 Decisões fechadas em 03/11/2026 (pipeline comercial)
+
+1. O painel passa a ter pipeline comercial simples, anotações internas e mescla de cadastros. Continua sem integração com o Bitrix24.
+2. **Etapa comercial independente da situação do teste.** Mudar a etapa nunca escreve em `status` (e vice-versa). A marcação de reunião realizada ou não compareceu continua como está.
+3. **Etapas, nesta ordem** (chaves e rótulos em `src/config/pipeline.ts`): `nao_contatado` Não contatado, `tentativa_contato` Tentativa de contato, `reuniao_marcada` Reunião marcada, `negociacao` Negociação, `negocio_provavel` Negócio provável, `negocio_fechado` Negócio fechado, `negocio_perdido` Negócio perdido.
+4. Lead sem registro de etapa = Não contatado, desde o `created_at`. Nenhuma mudança no site.
+5. Pode pular etapas e voltar para qualquer etapa. Ir para Negócio perdido exige motivo. Reabrir um perdido ou fechado é permitido e fica no histórico. A mudança é condicional (se outra pessoa mudou antes, é recusada com mensagem).
+6. **Motivos de perda** (lista editável em `src/config/pipeline.ts`): Sem interesse, Sem orçamento ou preço, Sumiu sem resposta, Escolheu outra solução, Não tem o perfil, Momento errado, Outro. "Outro" exige texto; os demais aceitam texto opcional.
+7. **Permissões de etapa:** admin muda qualquer lead; vendas só os seus; suporte vê, mas não muda; leitura não tem acesso a leads individuais.
+8. **Anotações internas:** admin, suporte e vendas (só nos seus) escrevem e leem. Não se edita nem se apaga. Mostradas sempre como texto, da mais recente para a mais antiga. Não se confundem com as `observacoes` que o lead escreve na ativação.
+9. **Mesclar:** só admin. Nada é apagado; o duplicado some de todas as listas, do pipeline e de todas as contagens. O principal mantém a própria etapa e a própria origem e herda o responsável do duplicado se não tiver um. Encadeamento: os duplicados de um principal que for mesclado passam para o novo principal. Desfazer a qualquer momento (admin). A sugestão de duplicados (mesmo WhatsApp ou nome normalizado) só sugere.
+10. **Pipeline:** quadro e lista; vendedor vê só os seus; Fechado e Perdido mostram os últimos 30 dias por padrão; até 50 cartões por coluna com "ver mais".
+11. **Funil comercial:** agregados para todos os papéis, com a mesma coorte e os mesmos cortes do funil; corte por responsável só para admin e suporte; para leitura, células de 1 a 4 ocultas no servidor, com proteção contra subtração igual à do Perfil.
+12. Tabelas novas: `painel_lead_etapa`, `painel_lead_etapa_historico` (só INSERT), `painel_lead_anotacao` (só INSERT), `painel_lead_mescla`. Migração `db/migrations/20261103_painel_pipeline.sql` e GRANTs em `db/grants/painel_app_pipeline.sql` (repetidos no fim de `db/grants/painel_app.sql`).

@@ -85,7 +85,9 @@ test("HTML no UTM aparece como texto e não executa", async ({ page }) => {
   });
   await entrar(page, EMAIL_DO_PAPEL.admin);
   await page.goto(TELA);
-  await expect(page.getByRole("rowheader", { name: HTML_MALICIOSO.toLowerCase() })).toBeVisible();
+  // O mesmo UTM aparece também na tabela de origem do funil comercial (como texto).
+  await expect(page.getByRole("region", { name: "Tabela de origem" }).getByRole("rowheader", { name: HTML_MALICIOSO.toLowerCase() })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Por origem (source / medium / campaign)" }).getByRole("rowheader").first()).toBeVisible();
   await expect(page.locator("section img[src='x']")).toHaveCount(0);
   expect(alerta).toBe(false);
   expect(await (await page.request.get(TELA)).text()).not.toContain("<img src=x");

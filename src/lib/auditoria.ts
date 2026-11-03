@@ -21,7 +21,11 @@ export type AcaoAuditoria =
   | "atribuir_lead"
   | "marcar_realizada"
   | "marcar_nao_compareceu"
-  | "desfazer_marcacao";
+  | "desfazer_marcacao"
+  | "mudar_etapa"
+  | "anotar_lead"
+  | "mesclar_leads"
+  | "desfazer_mescla";
 
 export async function registrarAuditoria(
   evento: {

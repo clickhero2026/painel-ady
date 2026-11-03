@@ -1,5 +1,6 @@
 import { registrarAuditoria } from "./auditoria";
 import { pool, transacao } from "./db";
+import { NAO_MESCLADO } from "./escopo";
 
 /**
  * Atribuição de responsável por lead (só admin; quem chama já checou o
@@ -23,8 +24,8 @@ export class LeadNaoEncontrado extends ErroAtribuicao {}
 
 export const MAX_LEADS_POR_LOTE = 100;
 
-/** Chave da trava de transação das atribuições (pg_advisory_xact_lock). */
-const TRAVA_ATRIBUICAO = 7_310_001;
+/** Chave da trava de transação das atribuições (pg_advisory_xact_lock). A mescla também usa (herança de responsável). */
+export const TRAVA_ATRIBUICAO = 7_310_001;
 
 export interface Responsavel {
   id: string;
@@ -83,7 +84,7 @@ export async function atribuir(leadIds: string[], usuarioId: string | null, porI
          FROM teste7d_inscricoes i
          LEFT JOIN painel_lead_responsavel r ON r.lead_id = i.id
          LEFT JOIN painel_usuarios u ON u.id = r.usuario_id
-        WHERE i.id = ANY($1::uuid[])`,
+        WHERE i.id = ANY($1::uuid[]) AND ${NAO_MESCLADO}`,
       [ids],
     );
     if (existentes.length !== ids.length) throw new LeadNaoEncontrado("Lead não encontrado. Atualize a página.");

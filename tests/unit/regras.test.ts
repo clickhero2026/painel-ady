@@ -5,9 +5,11 @@ import { passouDoMaximo } from "@/lib/sessao";
 
 describe("papéis", () => {
   it("barra lateral: Leads para admin, suporte e vendas; Reuniões para fechar para admin e suporte; Funil e Perfil para todos; Usuários só para admin", () => {
-    expect(navegacaoDoPapel("admin").map((i) => i.href)).toEqual(["/", "/leads", "/leads?visao=para_fechar", "/funil", "/perfil", "/usuarios"]);
-    expect(navegacaoDoPapel("suporte").map((i) => i.href)).toEqual(["/", "/leads", "/leads?visao=para_fechar", "/funil", "/perfil"]);
-    expect(navegacaoDoPapel("vendas").map((i) => i.href)).toEqual(["/", "/leads", "/funil", "/perfil"]);
+    expect(navegacaoDoPapel("admin").map((i) => i.href)).toEqual([
+      "/", "/leads", "/pipeline", "/leads?visao=para_fechar", "/funil", "/perfil", "/duplicados", "/usuarios",
+    ]);
+    expect(navegacaoDoPapel("suporte").map((i) => i.href)).toEqual(["/", "/leads", "/pipeline", "/leads?visao=para_fechar", "/funil", "/perfil"]);
+    expect(navegacaoDoPapel("vendas").map((i) => i.href)).toEqual(["/", "/leads", "/pipeline", "/funil", "/perfil"]);
     expect(navegacaoDoPapel("leitura").map((i) => i.href)).toEqual(["/", "/funil", "/perfil"]);
   });
 
@@ -19,6 +21,13 @@ describe("papéis", () => {
   it("atribuir só admin; marcar reunião admin e suporte", () => {
     expect(PAPEIS.filter((p) => podeAcessar(p, "atribuir"))).toEqual(["admin"]);
     expect(PAPEIS.filter((p) => podeAcessar(p, "marcarReuniao"))).toEqual(["admin", "suporte"]);
+  });
+
+  it("pipeline: admin, suporte e vendas veem; só admin e vendas mudam etapa; anotações para os três; mescla só admin", () => {
+    expect(PAPEIS.filter((p) => podeAcessar(p, "pipeline"))).toEqual(["admin", "suporte", "vendas"]);
+    expect(PAPEIS.filter((p) => podeAcessar(p, "mudarEtapa"))).toEqual(["admin", "vendas"]);
+    expect(PAPEIS.filter((p) => podeAcessar(p, "anotar"))).toEqual(["admin", "suporte", "vendas"]);
+    expect(PAPEIS.filter((p) => podeAcessar(p, "mesclar"))).toEqual(["admin"]);
   });
 
   it("perfil: todos veem (sem exportação)", () => {

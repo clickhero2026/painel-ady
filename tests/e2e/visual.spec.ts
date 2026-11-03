@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { leadsDe } from "../fixtures/leads";
+import { LEADS, leadsDe, USUARIOS_TESTE } from "../fixtures/leads";
 import { EMAIL_DO_PAPEL, entrar, prepararEquipe, sql } from "./apoio";
 
 /**
@@ -10,6 +10,45 @@ import { EMAIL_DO_PAPEL, entrar, prepararEquipe, sql } from "./apoio";
 
 const LARGURAS = [360, 390, 1280] as const;
 const LEAD = leadsDe("vera")[2]; // ativação preenchida: ficha com respostas
+const DUPLICADO = LEADS.filter((l) => l.dono === null)[5];
+
+/** Etapas, histórico, anotações e um cadastro mesclado, pra telas do pipeline com conteúdo. */
+async function semearPipeline() {
+  const ana = USUARIOS_TESTE.ana.id;
+  const etapas: [number, string, string | null, number][] = [
+    [0, "tentativa_contato", null, 2],
+    [1, "reuniao_marcada", null, 5],
+    [3, "negociacao", null, 1],
+    [4, "negocio_provavel", null, 3],
+    [5, "negocio_fechado", null, 4],
+    [6, "negocio_perdido", "sem_orcamento", 6],
+    [8, "tentativa_contato", null, 9],
+    [13, "negociacao", null, 12],
+    [17, "reuniao_marcada", null, 0],
+  ];
+  for (const [i, etapa, motivo, dias] of etapas) {
+    await sql("INSERT INTO painel_lead_etapa (lead_id, etapa, motivo_perda, atualizado_em, atualizado_por) VALUES ($1, $2, $3, now() - make_interval(days => $4), $5)", [
+      LEADS[i].id, etapa, motivo, dias, ana,
+    ]);
+    await sql("INSERT INTO painel_lead_etapa_historico (lead_id, etapa_de, etapa_para, motivo_perda, usuario_id, criado_em) VALUES ($1, 'nao_contatado', $2, $3, $4, now() - make_interval(days => $5))", [
+      LEADS[i].id, etapa, motivo, ana, dias,
+    ]);
+  }
+  await sql("INSERT INTO painel_lead_etapa (lead_id, etapa, atualizado_em, atualizado_por) VALUES ($1, 'tentativa_contato', now() - interval '3 days', $2)", [LEAD.id, ana]);
+  await sql(
+    `INSERT INTO painel_lead_etapa_historico (lead_id, etapa_de, etapa_para, usuario_id, criado_em) VALUES
+       ($1, 'nao_contatado', 'negociacao', $2, now() - interval '6 days'),
+       ($1, 'negociacao', 'tentativa_contato', $3, now() - interval '3 days')`,
+    [LEAD.id, ana, USUARIOS_TESTE.vera.id],
+  );
+  await sql(
+    `INSERT INTO painel_lead_anotacao (lead_id, usuario_id, texto, criado_em) VALUES
+       ($1, $2, 'Ligou pedindo para falar só depois das 18h.', now() - interval '2 days'),
+       ($1, $3, $4, now() - interval '1 hour')`,
+    [LEAD.id, USUARIOS_TESTE.sergio.id, USUARIOS_TESTE.vera.id, "Mandei o link do teste de novo.\nVai responder até sexta. Site: https://www.exemplo-de-endereco-muito-comprido.com.br/pagina?id=123456789"],
+  );
+  await sql("INSERT INTO painel_lead_mescla (duplicado_id, principal_id, mesclado_por) VALUES ($1, $2, $3)", [DUPLICADO.id, LEAD.id, ana]);
+}
 
 function vigiarConsole(page: Page) {
   const erros: string[] = [];
@@ -50,6 +89,7 @@ test.beforeEach(async () => {
     LEAD.id,
     "Prefere falar depois das 18h. Site: https://www.exemplo-de-endereco-muito-comprido.com.br/pagina/produto?id=123456789",
   ]);
+  await semearPipeline();
 });
 
 for (const largura of LARGURAS) {
@@ -86,6 +126,46 @@ for (const largura of LARGURAS) {
     if (capturar) await page.screenshot({ path: `docs/capturas/ficha-reuniao-${largura}.png`, fullPage: true });
     await page.getByRole("button", { name: "Cancelar" }).click();
 
+    // Blocos novos da ficha: etapa comercial, anotações e cadastros mesclados (com a comparação aberta).
+    for (const [regiao, nome] of [
+      ["Etapa comercial", "ficha-etapa"],
+      ["Anotações internas", "ficha-anotacoes"],
+    ] as const) {
+      await expect(page.getByRole("region", { name: regiao })).toBeVisible();
+      if (capturar) await page.getByRole("region", { name: regiao }).screenshot({ path: `docs/capturas/${nome}-${largura}.png` });
+    }
+    await page.getByRole("region", { name: "Etapa comercial" }).getByLabel("Mudar para").selectOption("negocio_perdido");
+    await page.getByRole("region", { name: "Etapa comercial" }).getByRole("button", { name: "Salvar etapa" }).click();
+    await expect(page.getByRole("group", { name: "Por que o negócio foi perdido?" })).toBeVisible();
+    await semCortes(page);
+    if (capturar) await page.getByRole("region", { name: "Etapa comercial" }).screenshot({ path: `docs/capturas/ficha-etapa-perdido-${largura}.png` });
+    await page.getByRole("region", { name: "Etapa comercial" }).getByRole("button", { name: "Cancelar" }).click();
+    const mesclados = page.getByRole("region", { name: "Cadastros mesclados" });
+    await mesclados.getByRole("button", { name: "Mesclar com outro lead" }).click();
+    await mesclados.getByLabel("Buscar o outro cadastro por nome, e-mail ou WhatsApp").fill("Zeca");
+    await mesclados.getByRole("button", { name: "Buscar", exact: true }).click();
+    await mesclados.getByRole("button", { name: /Comparar com Zeca/ }).click();
+    await expect(mesclados.getByRole("heading", { name: "Confira os dois cadastros antes de mesclar" })).toBeFocused();
+    await semCortes(page);
+    if (capturar) await mesclados.screenshot({ path: `docs/capturas/ficha-mescla-${largura}.png` });
+
+    // Pipeline: quadro e lista.
+    await page.goto("/pipeline");
+    await expect(page.getByRole("heading", { name: "Pipeline", level: 1 })).toBeVisible();
+    await semCortes(page);
+    if (capturar) await page.screenshot({ path: `docs/capturas/pipeline-quadro-${largura}.png`, fullPage: true });
+    const cartao = page.getByRole("article", { name: LEADS[0].nome });
+    await cartao.getByRole("button", { name: /Mover para/ }).click();
+    await semCortes(page);
+    if (capturar) await page.screenshot({ path: `docs/capturas/pipeline-mover-${largura}.png` });
+    await page.goto("/pipeline?modo=lista");
+    await expect(page.getByRole("heading", { name: "Pipeline", level: 1 })).toBeVisible();
+    await semCortes(page);
+    if (capturar) await page.screenshot({ path: `docs/capturas/pipeline-lista-${largura}.png`, fullPage: true });
+    await page.goto("/duplicados");
+    await semCortes(page);
+    if (capturar) await page.screenshot({ path: `docs/capturas/duplicados-${largura}.png`, fullPage: true });
+
     // Lista com seleção em lote.
     await page.goto("/leads?visao=sem_responsavel");
     for (const caixa of (await page.getByRole("checkbox", { name: /^Selecionar (?!todos)/ }).all()).slice(0, 3)) await caixa.check();
@@ -103,6 +183,11 @@ for (const largura of LARGURAS) {
     await graficosProntos(page);
     await semCortes(page);
     if (capturar) await page.screenshot({ path: `docs/capturas/funil-${largura}.png`, fullPage: true });
+    await page.goto("/funil?periodo=tudo");
+    await graficosProntos(page);
+    const comercial = page.getByRole("region", { name: "Funil comercial" });
+    await expect(comercial).toBeVisible();
+    if (capturar) await comercial.screenshot({ path: `docs/capturas/funil-comercial-${largura}.png` });
 
     await page.goto("/perfil?periodo=tudo");
     await expect(page.getByRole("heading", { name: "Perfil dos leads", level: 1 })).toBeVisible();
@@ -128,7 +213,18 @@ for (const largura of LARGURAS) {
 test("texto a 200% sem cortar (1280px)", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
   await entrar(page, EMAIL_DO_PAPEL.admin);
-  for (const caminho of ["/", "/leads", "/leads?visao=para_fechar", `/leads/${LEAD.id}`, "/funil", "/perfil?periodo=tudo", "/usuarios"]) {
+  for (const caminho of [
+    "/",
+    "/leads",
+    "/leads?visao=para_fechar",
+    `/leads/${LEAD.id}`,
+    "/pipeline",
+    "/pipeline?modo=lista",
+    "/duplicados",
+    "/funil",
+    "/perfil?periodo=tudo",
+    "/usuarios",
+  ]) {
     await page.goto(caminho);
     if (caminho === "/funil") await graficosProntos(page);
     // Pelo CSSOM: a CSP do painel bloqueia <style> injetado.
@@ -169,6 +265,10 @@ test("axe sem violações (WCAG 2.2 AA) em todas as telas", async ({ page }) => 
       ["ficha", `/leads/${LEAD.id}`],
       ["reuniões para fechar", "/leads?visao=para_fechar"],
       ["fila sem responsável", "/leads?visao=sem_responsavel"],
+      ["pipeline", "/pipeline"],
+      ["pipeline lista", "/pipeline?modo=lista"],
+      ["pipeline tudo", "/pipeline?tudo=1"],
+      ["duplicados", "/duplicados"],
       ["funil", "/funil"],
       ["funil vazio", "/funil?de=2020-01-01&ate=2020-01-07"],
       ["perfil", "/perfil?periodo=tudo"],
@@ -186,6 +286,20 @@ test("axe sem violações (WCAG 2.2 AA) em todas as telas", async ({ page }) => 
   await page.goto(`/leads/${LEAD.id}`);
   await page.getByRole("button", { name: "Reunião realizada" }).click();
   await verificar("ficha confirmando reunião");
+  // Pedido de motivo da perda, comparação da mescla e menu "Mover para…".
+  await page.goto(`/leads/${LEAD.id}`);
+  await page.getByRole("region", { name: "Etapa comercial" }).getByLabel("Mudar para").selectOption("negocio_perdido");
+  await page.getByRole("region", { name: "Etapa comercial" }).getByRole("button", { name: "Salvar etapa" }).click();
+  await verificar("ficha pedindo motivo");
+  const mesclados = page.getByRole("region", { name: "Cadastros mesclados" });
+  await mesclados.getByRole("button", { name: "Mesclar com outro lead" }).click();
+  await mesclados.getByLabel("Buscar o outro cadastro por nome, e-mail ou WhatsApp").fill("Zeca");
+  await mesclados.getByRole("button", { name: "Buscar", exact: true }).click();
+  await mesclados.getByRole("button", { name: /Comparar com Zeca/ }).click();
+  await verificar("ficha comparando mescla");
+  await page.goto("/pipeline");
+  await page.getByRole("article", { name: LEADS[0].nome }).getByRole("button", { name: /Mover para/ }).click();
+  await verificar("pipeline com menu aberto");
   await page.goto("/leads");
   await page.getByLabel("Selecionar todos desta página").check();
   await verificar("lista com seleção");
@@ -194,9 +308,17 @@ test("axe sem violações (WCAG 2.2 AA) em todas as telas", async ({ page }) => 
   await entrar(page, EMAIL_DO_PAPEL.leitura);
   await page.goto("/leads");
   await verificar("403");
-  // Perfil com células ocultas.
+  // Perfil e funil comercial com células ocultas.
   await page.goto("/perfil?periodo=tudo");
   await verificar("perfil leitura");
+  await page.goto("/funil?periodo=tudo");
+  await graficosProntos(page);
+  await verificar("funil leitura");
+  // Vendas: pipeline só dos seus, com menu de mover.
+  await page.context().clearCookies();
+  await entrar(page, EMAIL_DO_PAPEL.vendas);
+  await page.goto("/pipeline");
+  await verificar("pipeline vendas");
 });
 
 test("teclado: pular para o conteúdo e navegar pelo login", async ({ page }) => {

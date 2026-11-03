@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { ETAPAS_COMERCIAIS, type EtapaComercial } from "@/config/pipeline";
 import { ETAPAS } from "./etapas";
 import type { Papel } from "./papeis";
 
@@ -25,14 +26,17 @@ export function podeVerVisao(visao: Visao, papel: Papel): boolean {
   return true;
 }
 
-export const ORDENS = ["cadastro", "nome", "etapa", "criativo", "versao", "responsavel", "reuniao", "parado", "agendamento"] as const;
+export const ORDENS = ["cadastro", "nome", "etapa", "comercial", "criativo", "versao", "responsavel", "reuniao", "parado", "agendamento"] as const;
 export type Ordem = (typeof ORDENS)[number];
 
 export const VERSOES = ["A", "B", "C", "D", "E", "F"] as const;
 export const POR_PAGINA = 25;
 
 export interface FiltrosLeads {
+  /** Situação do teste (coluna status, preenchida pelo site). */
   status?: (typeof ETAPAS)[number];
+  /** Etapa comercial (pipeline). */
+  comercial?: EtapaComercial;
   criativo?: string;
   campanha?: string;
   versao?: (typeof VERSOES)[number];
@@ -52,6 +56,7 @@ const texto = (max: number) => z.string().trim().min(1).max(max);
 
 const campos = {
   status: z.enum(ETAPAS),
+  comercial: z.enum(ETAPAS_COMERCIAIS),
   criativo: texto(200),
   campanha: texto(200),
   versao: z.enum(VERSOES),

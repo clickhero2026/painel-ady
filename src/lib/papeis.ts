@@ -24,7 +24,7 @@ export function ehPapel(valor: unknown): valor is Papel {
 export interface ItemNavegacao {
   href: string;
   rotulo: string;
-  icone: "inicio" | "leads" | "reunioes" | "funil" | "perfil" | "usuarios";
+  icone: "inicio" | "leads" | "pipeline" | "duplicados" | "reunioes" | "funil" | "perfil" | "usuarios";
   papeis: readonly Papel[];
 }
 
@@ -32,9 +32,11 @@ export interface ItemNavegacao {
 export const NAVEGACAO: readonly ItemNavegacao[] = [
   { href: "/", rotulo: "Início", icone: "inicio", papeis: PAPEIS },
   { href: "/leads", rotulo: "Leads", icone: "leads", papeis: ["admin", "suporte", "vendas"] },
+  { href: "/pipeline", rotulo: "Pipeline", icone: "pipeline", papeis: ["admin", "suporte", "vendas"] },
   { href: "/leads?visao=para_fechar", rotulo: "Reuniões para fechar", icone: "reunioes", papeis: ["admin", "suporte"] },
   { href: "/funil", rotulo: "Funil", icone: "funil", papeis: PAPEIS },
   { href: "/perfil", rotulo: "Perfil", icone: "perfil", papeis: PAPEIS },
+  { href: "/duplicados", rotulo: "Possíveis duplicados", icone: "duplicados", papeis: ["admin"] },
   { href: "/usuarios", rotulo: "Usuários", icone: "usuarios", papeis: ["admin"] },
 ];
 
@@ -60,6 +62,14 @@ export const ACESSO_ROTAS = {
   atribuir: ["admin"],
   /** Marcar reunião realizada ou não compareceu, e desfazer; visão "Reuniões para fechar". */
   marcarReuniao: ["admin", "suporte"],
+  /** Tela Pipeline (quadro e lista). Suporte só lê; vendas só os seus (leads.ts). */
+  pipeline: ["admin", "suporte", "vendas"],
+  /** Mudar a etapa comercial. Admin em qualquer lead; vendas só nos seus. Suporte não. */
+  mudarEtapa: ["admin", "vendas"],
+  /** Ler e escrever anotações internas (vendas só nos seus). */
+  anotar: ["admin", "suporte", "vendas"],
+  /** Mesclar e desfazer mescla; tela "Possíveis duplicados". */
+  mesclar: ["admin"],
 } as const satisfies Record<string, readonly Papel[]>;
 
 export function podeAcessar(papel: Papel, area: keyof typeof ACESSO_ROTAS): boolean {

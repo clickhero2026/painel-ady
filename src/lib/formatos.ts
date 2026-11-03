@@ -81,3 +81,15 @@ export function formatarPontos(fracao: number): string {
 export function jaPassou(data: Date | string, agora = Date.now()): boolean {
   return new Date(data).getTime() < agora;
 }
+
+/** Dias inteiros desde `desde`, em palavras: "hoje", "há 1 dia", "há 12 dias". */
+export function diasDesde(desde: Date | string, agora = Date.now()): string {
+  const dias = Math.max(0, Math.floor((agora - new Date(desde).getTime()) / 86_400_000));
+  if (dias === 0) return "hoje";
+  return dias === 1 ? "há 1 dia" : `há ${dias} dias`;
+}
+
+/** Só o número de dias inteiros desde `desde`. */
+export function numeroDeDias(desde: Date | string, agora = Date.now()): number {
+  return Math.max(0, Math.floor((agora - new Date(desde).getTime()) / 86_400_000));
+}

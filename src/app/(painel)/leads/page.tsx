@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EtiquetaEtapa } from "@/components/leads/EtiquetaEtapa";
+import { EtiquetaComercial } from "@/components/pipeline/EtiquetaComercial";
 import { CaixaDoLead, SelecaoEmLote } from "@/components/leads/SelecaoEmLote";
 import { Aviso } from "@/components/ui/Aviso";
 import { Seletor } from "@/components/ui/Seletor";
 import { botao, campo, rotulo } from "@/components/ui/estilos";
+import { ETAPAS_COMERCIAIS, ROTULO_ETAPA_COMERCIAL } from "@/config/pipeline";
 import { ETAPAS, ROTULO_ETAPA } from "@/lib/etapas";
 import {
   lerFiltros,
@@ -41,7 +43,7 @@ export default async function PaginaLeads({ searchParams }: PageProps<"/leads">)
   const mostrarParado = filtros.visao === "parados";
   const paraFechar = filtros.visao === "para_fechar";
   const colunas = { mostrarParado, paraFechar, selecionar };
-  const filtrosAtivos = (["status", "criativo", "campanha", "versao", "de", "ate", "responsavel"] as const).filter(
+  const filtrosAtivos = (["status", "comercial", "criativo", "campanha", "versao", "de", "ate", "responsavel"] as const).filter(
     (c) => filtros[c],
   ).length;
   const semDadosDaVisao = filtros.visao === "agendados_semana" && !pagina.temDadosDeReuniao;
@@ -94,7 +96,13 @@ export default async function PaginaLeads({ searchParams }: PageProps<"/leads">)
             Filtros e ordem{filtrosAtivos > 0 ? ` (${filtrosAtivos} ${filtrosAtivos === 1 ? "ativo" : "ativos"})` : ""}
           </summary>
           <div className="grid gap-4 border-t border-borda p-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Seletor id="status" rotulo="Etapa" valor={filtros.status} opcoes={ETAPAS.map((e) => [e, ROTULO_ETAPA[e]])} />
+            <Seletor id="status" rotulo="Situação do teste" valor={filtros.status} opcoes={ETAPAS.map((e) => [e, ROTULO_ETAPA[e]])} />
+            <Seletor
+              id="comercial"
+              rotulo="Etapa comercial"
+              valor={filtros.comercial}
+              opcoes={ETAPAS_COMERCIAIS.map((e) => [e, ROTULO_ETAPA_COMERCIAL[e]])}
+            />
             <Seletor id="criativo" rotulo="Criativo" valor={filtros.criativo} opcoes={opcoes.criativos.map((c) => [c, c])} />
             <Seletor id="campanha" rotulo="Campanha" valor={filtros.campanha} opcoes={opcoes.campanhas.map((c) => [c, c])} />
             <Seletor id="versao" rotulo="Versão do título" valor={filtros.versao} opcoes={VERSOES.map((v) => [v, v])} />
@@ -199,7 +207,8 @@ export default async function PaginaLeads({ searchParams }: PageProps<"/leads">)
 const ROTULO_ORDEM: Record<Ordem, string> = {
   cadastro: "Data do cadastro",
   nome: "Nome",
-  etapa: "Etapa",
+  etapa: "Situação do teste",
+  comercial: "Etapa comercial",
   criativo: "Criativo",
   versao: "Versão do título",
   responsavel: "Responsável",
@@ -278,7 +287,8 @@ function TabelaLeads({ itens, filtros, mostrarParado, paraFechar, selecionar }: 
               </th>
             )}
             <CabecalhoOrdenavel ordem="nome" filtros={filtros}>Nome</CabecalhoOrdenavel>
-            <CabecalhoOrdenavel ordem="etapa" filtros={filtros}>Etapa</CabecalhoOrdenavel>
+            <CabecalhoOrdenavel ordem="etapa" filtros={filtros}>Situação do teste</CabecalhoOrdenavel>
+            <CabecalhoOrdenavel ordem="comercial" filtros={filtros}>Etapa comercial</CabecalhoOrdenavel>
             {mostrarParado && <CabecalhoOrdenavel ordem="parado" filtros={filtros}>Parado há</CabecalhoOrdenavel>}
             <CabecalhoOrdenavel ordem="criativo" filtros={filtros}>Criativo</CabecalhoOrdenavel>
             <CabecalhoOrdenavel ordem="versao" filtros={filtros}>Versão</CabecalhoOrdenavel>
@@ -302,6 +312,7 @@ function TabelaLeads({ itens, filtros, mostrarParado, paraFechar, selecionar }: 
                 </Link>
               </td>
               <td className="px-3 py-3"><EtiquetaEtapa status={lead.status} /></td>
+              <td className="px-3 py-3"><EtiquetaComercial etapa={lead.etapa_comercial} /></td>
               {mostrarParado && <td className="px-3 py-3 whitespace-nowrap">{tempoDesde(lead.parado_desde)}</td>}
               <td className="px-3 py-3 wrap-anywhere">{lead.utm_content ?? <Vazio />}</td>
               <td className="px-3 py-3">{lead.lp_variant ?? <Vazio />}</td>
@@ -337,10 +348,14 @@ function CartoesLeads({ itens, mostrarParado, paraFechar, selecionar }: { itens:
               <Link href={`/leads/${lead.id}`} prefetch={false} className="font-semibold text-petroleo-forte underline underline-offset-4 wrap-anywhere">
                 {lead.nome}
               </Link>
-              <EtiquetaEtapa status={lead.status} />
+              <span>
+                <span className="sr-only">Situação do teste: </span>
+                <EtiquetaEtapa status={lead.status} />
+              </span>
             </div>
           </div>
           <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+            <Par termo="Etapa comercial" valor={<EtiquetaComercial etapa={lead.etapa_comercial} />} />
             {mostrarParado && <Par termo="Parado há" valor={tempoDesde(lead.parado_desde)} />}
             <Par termo="Criativo" valor={lead.utm_content ?? <Vazio />} />
             <Par termo="Versão" valor={lead.lp_variant ?? <Vazio />} />

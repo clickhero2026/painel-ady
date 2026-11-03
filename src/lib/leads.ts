@@ -1,6 +1,8 @@
 import { registrarAuditoria } from "./auditoria";
 import { URL_ATIVAR_CONTA } from "@/config/contato";
+import { ETAPA_INICIAL, ETAPAS_COMERCIAIS, type EtapaComercial } from "@/config/pipeline";
 import { pool } from "./db";
+import { NAO_MESCLADO } from "./escopo";
 import { ETAPAS_PARADAS } from "./etapas";
 import { POR_PAGINA, type FiltrosLeads, type Ordem } from "./filtrosLeads";
 import type { Papel } from "./papeis";
@@ -12,8 +14,10 @@ import { Parametros } from "./sql";
  *   - admin e suporte: todos os leads;
  *   - vendas: só os leads em que é o responsável (painel_lead_responsavel);
  *   - leitura: nenhum lead individual (lança SemAcessoALeads).
+ * E, para todos, só leads que NÃO foram mesclados em outro (escopo.ts).
  * Lead fora do escopo simplesmente não existe pra quem consulta (a tela e
- * a API respondem 404).
+ * a API respondem 404). pipeline.ts, anotacoes.ts e mescla.ts usam a
+ * mesma função.
  *
  * Colunas sempre listadas uma a uma (nunca i.*): o painel_app só enxerga as
  * colunas liberadas em db/grants/painel_app.sql. O token de retomada só é
@@ -27,34 +31,45 @@ export interface QuemConsulta {
 
 export class SemAcessoALeads extends Error {}
 
-const ORIGEM = `teste7d_inscricoes i
+/** Leads (i), responsável (r, ru) e etapa comercial (e). Toda consulta de lead parte daqui. */
+export const ORIGEM = `teste7d_inscricoes i
   LEFT JOIN painel_lead_responsavel r ON r.lead_id = i.id
-  LEFT JOIN painel_usuarios ru ON ru.id = r.usuario_id`;
+  LEFT JOIN painel_usuarios ru ON ru.id = r.usuario_id
+  LEFT JOIN painel_lead_etapa e ON e.lead_id = i.id`;
 
-/** Condição SQL com os leads que `usuario` pode ver. */
+/** Condição SQL com os leads que `usuario` pode ver (sempre sem os mesclados em outro). */
 export function leadsVisiveis(usuario: QuemConsulta, p: Parametros): string {
   switch (usuario.papel) {
     case "admin":
     case "suporte":
-      return "TRUE";
+      return NAO_MESCLADO;
     case "vendas":
-      return `r.usuario_id = ${p.add(usuario.id)}`;
+      return `(r.usuario_id = ${p.add(usuario.id)} AND ${NAO_MESCLADO})`;
     default:
       throw new SemAcessoALeads();
   }
 }
 
+/** Etapa comercial atual: sem registro = não contatado. */
+export const ETAPA_ATUAL = `coalesce(e.etapa, '${ETAPA_INICIAL}')`;
+/** Desde quando está na etapa atual: sem registro = desde o cadastro. */
+export const NA_ETAPA_DESDE = "coalesce(e.atualizado_em, i.created_at)";
+/** Ordem das etapas comerciais, pra ordenar. */
+export const ORDEM_ETAPA_COMERCIAL = `array_position(ARRAY[${ETAPAS_COMERCIAIS.map((x) => `'${x}'`).join(",")}], ${ETAPA_ATUAL})`;
+
 export function podeVerLeads(papel: Papel): boolean {
   return papel === "admin" || papel === "suporte" || papel === "vendas";
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /**
  * Responsável válido: usuário ativo com papel que pode ser responsável
  * (vendas ou admin). Desativado ou com outro papel = "sem responsável".
  */
-const RESPONSAVEL_VALIDO = "(ru.ativo AND ru.papel IN ('admin', 'vendas'))";
-const SEM_RESPONSAVEL = `(r.usuario_id IS NULL OR NOT ${RESPONSAVEL_VALIDO})`;
+export const RESPONSAVEL_VALIDO = "(ru.ativo AND ru.papel IN ('admin', 'vendas'))";
+/** Nome do responsável válido, ou null. */
+export const NOME_RESPONSAVEL = `CASE WHEN ${RESPONSAVEL_VALIDO} THEN coalesce(ru.nome, ru.email) END`;
+export const SEM_RESPONSAVEL = `(r.usuario_id IS NULL OR NOT ${RESPONSAVEL_VALIDO})`;
 /** Agendado e sem desfecho (realizada ou não compareceu). */
 const PARA_FECHAR = "i.status = 'agendado'";
 const PARADO_DESDE = "greatest(i.created_at, i.etapa2_concluida_em, i.ultima_retomada_em)";
@@ -74,6 +89,7 @@ export interface ItemLista {
   agendado_em: Date | null;
   parado_desde: Date;
   responsavel_nome: string | null;
+  etapa_comercial: EtapaComercial;
 }
 
 export interface PaginaDeLeads {
@@ -91,6 +107,7 @@ const ORDENACAO: Record<Ordem, string> = {
   // banco (no Postgres local ela põe "Úrsula" depois de "Zeca").
   nome: 'i.nome COLLATE "und-x-icu"',
   etapa: `array_position(ARRAY['inscrito','ativacao_preenchida','agendado','realizado','nao_compareceu'], i.status)`,
+  comercial: ORDEM_ETAPA_COMERCIAL,
   criativo: "i.utm_content",
   versao: "i.lp_variant",
   responsavel: 'coalesce(ru.nome, ru.email) COLLATE "und-x-icu"',
@@ -103,25 +120,36 @@ function escaparLike(texto: string): string {
   return texto.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
+/** Busca por nome, e-mail ou WhatsApp (dígitos), igual na lista, no pipeline e na mescla. */
+export function condicaoDeBusca(q: string, p: Parametros): string {
+  const termo = p.add(`%${escaparLike(q)}%`);
+  const busca = [`i.nome ILIKE ${termo}`, `i.email ILIKE ${termo}`];
+  const digitos = q.replace(/\D/g, "");
+  if (digitos.length >= 3) busca.push(`i.whatsapp LIKE ${p.add(`%${digitos}%`)}`);
+  return `(${busca.join(" OR ")})`;
+}
+
+/** Período do cadastro (datas de São Paulo, inclusivas). */
+export function condicoesDePeriodo(de: string | undefined, ate: string | undefined, p: Parametros): string[] {
+  const where: string[] = [];
+  if (de) where.push(`i.created_at >= (${p.add(de)}::date::timestamp AT TIME ZONE 'America/Sao_Paulo')`);
+  if (ate) where.push(`i.created_at < ((${p.add(ate)}::date + 1)::timestamp AT TIME ZONE 'America/Sao_Paulo')`);
+  return where;
+}
+
 function condicoes(usuario: QuemConsulta, f: FiltrosLeads, p: Parametros): string[] {
   const where = [leadsVisiveis(usuario, p)];
 
   if (f.status) where.push(`i.status = ${p.add(f.status)}`);
+  if (f.comercial) where.push(`${ETAPA_ATUAL} = ${p.add(f.comercial)}`);
   if (f.criativo) where.push(`i.utm_content = ${p.add(f.criativo)}`);
   if (f.campanha) where.push(`i.utm_campaign = ${p.add(f.campanha)}`);
   if (f.versao) where.push(`i.lp_variant = ${p.add(f.versao)}`);
-  if (f.de) where.push(`i.created_at >= (${p.add(f.de)}::date::timestamp AT TIME ZONE 'America/Sao_Paulo')`);
-  if (f.ate) where.push(`i.created_at < ((${p.add(f.ate)}::date + 1)::timestamp AT TIME ZONE 'America/Sao_Paulo')`);
+  where.push(...condicoesDePeriodo(f.de, f.ate, p));
   if (f.responsavel === "sem") where.push(SEM_RESPONSAVEL);
   else if (f.responsavel) where.push(`r.usuario_id = ${p.add(f.responsavel)}`);
 
-  if (f.q) {
-    const termo = p.add(`%${escaparLike(f.q)}%`);
-    const busca = [`i.nome ILIKE ${termo}`, `i.email ILIKE ${termo}`];
-    const digitos = f.q.replace(/\D/g, "");
-    if (digitos.length >= 3) busca.push(`i.whatsapp LIKE ${p.add(`%${digitos}%`)}`);
-    where.push(`(${busca.join(" OR ")})`);
-  }
+  if (f.q) where.push(condicaoDeBusca(f.q, p));
 
   switch (f.visao) {
     case "parados":
@@ -166,7 +194,8 @@ export async function listarLeads(usuario: QuemConsulta, f: FiltrosLeads): Promi
   const { rows } = await pool().query<ItemLista>(
     `SELECT i.id, i.nome, i.status, i.utm_content, i.lp_variant, i.created_at, i.reuniao_em, i.agendado_em,
             ${PARADO_DESDE} AS parado_desde,
-            CASE WHEN ${RESPONSAVEL_VALIDO} THEN coalesce(ru.nome, ru.email) END AS responsavel_nome
+            ${NOME_RESPONSAVEL} AS responsavel_nome,
+            ${ETAPA_ATUAL} AS etapa_comercial
        FROM ${ORIGEM}
       WHERE ${where}
       ORDER BY ${ORDENACAO[f.ordem]} ${direcao} NULLS LAST, i.created_at DESC, i.id
@@ -245,6 +274,10 @@ export interface Ficha {
   ultima_retomada_em: Date | null;
   responsavel_id: string | null;
   responsavel_nome: string | null;
+  etapa_comercial: EtapaComercial;
+  na_etapa_desde: Date;
+  motivo_perda: string | null;
+  motivo_perda_texto: string | null;
 }
 
 /** Colunas da ficha. Fora de propósito: ip_hash, user_agent, fbclid e o token. */
@@ -255,7 +288,8 @@ const COLUNAS_FICHA = `i.id, i.created_at, i.nome, i.email, i.whatsapp,
   i.reuniao_computador, i.observacoes, i.etapa2_concluida_em,
   i.agendado_em, i.reuniao_em, i.realizada_em, i.status, i.ultima_retomada_em,
   CASE WHEN ${RESPONSAVEL_VALIDO} THEN ru.id END AS responsavel_id,
-  CASE WHEN ${RESPONSAVEL_VALIDO} THEN coalesce(ru.nome, ru.email) END AS responsavel_nome`;
+  ${NOME_RESPONSAVEL} AS responsavel_nome,
+  ${ETAPA_ATUAL} AS etapa_comercial, ${NA_ETAPA_DESDE} AS na_etapa_desde, e.motivo_perda, e.motivo_perda_texto`;
 
 /** Caminho de uma URL, sem host, query string nem fragmento; null se não for URL. */
 export function caminhoDaUrl(url: string | null): string | null {
@@ -287,6 +321,24 @@ export async function abrirFicha(usuario: QuemConsulta, id: string, via: "tela" 
   }
   if (ficha) await registrarAuditoria({ usuarioId: usuario.id, acao: "ver_lead", leadId: id, detalhe: { via } });
   return ficha;
+}
+
+/**
+ * Se `id` é um cadastro mesclado em outro e `usuario` pode ver o principal,
+ * devolve o id do principal (a ficha do duplicado redireciona para ele).
+ * Caso contrário, null (e a ficha responde 404, como qualquer lead
+ * invisível).
+ */
+export async function principalVisivelDe(usuario: QuemConsulta, id: string): Promise<string | null> {
+  if (!UUID.test(id)) return null;
+  const p = new Parametros();
+  const { rows } = await pool().query<{ id: string }>(
+    `SELECT i.id FROM painel_lead_mescla m
+       JOIN ${ORIGEM} ON i.id = m.principal_id
+      WHERE m.duplicado_id = ${p.add(id)} AND ${leadsVisiveis(usuario, p)}`,
+    p.valores,
+  );
+  return rows[0]?.id ?? null;
 }
 
 /**
@@ -324,7 +376,8 @@ export async function contadoresDoMenu(papel: Papel): Promise<ContadoresDoMenu> 
   const { rows } = await pool().query<{ sem_responsavel: number; para_fechar: number }>(
     `SELECT (count(*) FILTER (WHERE ${SEM_RESPONSAVEL}))::int AS sem_responsavel,
             (count(*) FILTER (WHERE ${PARA_FECHAR}))::int AS para_fechar
-       FROM ${ORIGEM}`,
+       FROM ${ORIGEM}
+      WHERE ${NAO_MESCLADO}`,
   );
   const r = rows[0];
   return Object.fromEntries(contar.map((c) => [c, c === "semResponsavel" ? r.sem_responsavel : r.para_fechar]));

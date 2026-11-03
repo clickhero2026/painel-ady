@@ -1,5 +1,6 @@
 import { registrarAuditoria } from "./auditoria";
 import { pool, transacao, type Consulta } from "./db";
+import { NAO_MESCLADO } from "./escopo";
 import { rotuloEtapa } from "./etapas";
 
 /**
@@ -34,7 +35,10 @@ export class ErroReuniao extends Error {
 }
 
 async function statusAtual(db: Consulta, leadId: string): Promise<string> {
-  const { rows } = await db.query<{ status: string }>("SELECT status FROM teste7d_inscricoes WHERE id = $1", [leadId]);
+  const { rows } = await db.query<{ status: string }>(
+    `SELECT i.status FROM teste7d_inscricoes i WHERE i.id = $1 AND ${NAO_MESCLADO}`,
+    [leadId],
+  );
   if (!rows[0]) throw new ErroReuniao("Lead não encontrado.", "nao_encontrado");
   return rows[0].status;
 }
@@ -42,11 +46,11 @@ async function statusAtual(db: Consulta, leadId: string): Promise<string> {
 export async function marcarDesfecho(leadId: string, desfecho: Desfecho, porId: string): Promise<void> {
   await transacao(async (db) => {
     const { rows } = await db.query<{ id: string }>(
-      `UPDATE teste7d_inscricoes
+      `UPDATE teste7d_inscricoes i
           SET status = $2::text,
               realizada_em = CASE WHEN $2::text = 'realizado' THEN now() ELSE realizada_em END
-        WHERE id = $1 AND status = 'agendado'
-        RETURNING id`,
+        WHERE i.id = $1 AND i.status = 'agendado' AND ${NAO_MESCLADO}
+        RETURNING i.id`,
       [leadId, desfecho],
     );
     if (!rows[0]) {
@@ -111,9 +115,9 @@ export async function desfazerMarcacao(leadId: string, porId: string): Promise<v
       throw new ErroReuniao(`Passou o prazo: só dá para desfazer até ${PRAZO_DESFAZER_HORAS} horas depois da marcação.`, "prazo");
     }
     const { rows } = await db.query<{ id: string }>(
-      `UPDATE teste7d_inscricoes SET status = 'agendado', realizada_em = NULL
-        WHERE id = $1 AND status = $2
-        RETURNING id`,
+      `UPDATE teste7d_inscricoes i SET status = 'agendado', realizada_em = NULL
+        WHERE i.id = $1 AND i.status = $2 AND ${NAO_MESCLADO}
+        RETURNING i.id`,
       [leadId, desfecho],
     );
     if (!rows[0]) {
