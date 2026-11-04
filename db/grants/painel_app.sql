@@ -43,3 +43,8 @@ GRANT SELECT, INSERT, UPDATE ON painel_lead_etapa TO painel_app;
 GRANT SELECT, INSERT ON painel_lead_etapa_historico, painel_lead_anotacao TO painel_app;
 GRANT USAGE ON SEQUENCE painel_lead_etapa_historico_id_seq, painel_lead_anotacao_id_seq TO painel_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON painel_lead_mescla TO painel_app;
+
+-- Cadastro manual de lead. Mesmo conteúdo de
+-- db/grants/painel_app_lead_manual.sql: um teste confere que os dois
+-- arquivos não divergem.
+GRANT INSERT (nome, email, whatsapp, utm_source) ON teste7d_inscricoes TO painel_app;

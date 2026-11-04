@@ -20,6 +20,7 @@ export function BlocoComercial({ dados }: { dados: FunilComercial }) {
       <p className="mt-1 text-sm text-texto-suave">
         Etapas do pipeline para os cadastros do recorte acima (as mesmas datas e filtros). Lead sem etapa registrada conta como
         “Não contatado”. Quem pulou etapas conta como tendo chegado às anteriores. Cadastros mesclados em outro não contam.
+        Leads cadastrados à mão no painel (origem “manual”) contam aqui, mas não nos indicadores acima.
       </p>
       <div className="mt-4 space-y-3">
         {dados.ocultaAbaixoDe !== null && (

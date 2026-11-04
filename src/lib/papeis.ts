@@ -70,6 +70,8 @@ export const ACESSO_ROTAS = {
   anotar: ["admin", "suporte", "vendas"],
   /** Mesclar e desfazer mescla; tela "Possíveis duplicados". */
   mesclar: ["admin"],
+  /** Cadastrar lead à mão ("Novo lead", POST /api/leads). Vendas fica como responsável (leadManual.ts). */
+  criarLead: ["admin", "vendas"],
 } as const satisfies Record<string, readonly Papel[]>;
 
 export function podeAcessar(papel: Papel, area: keyof typeof ACESSO_ROTAS): boolean {

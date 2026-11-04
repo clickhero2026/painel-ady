@@ -25,7 +25,8 @@ export type AcaoAuditoria =
   | "mudar_etapa"
   | "anotar_lead"
   | "mesclar_leads"
-  | "desfazer_mescla";
+  | "desfazer_mescla"
+  | "criar_lead";
 
 export async function registrarAuditoria(
   evento: {

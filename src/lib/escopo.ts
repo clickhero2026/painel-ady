@@ -4,7 +4,8 @@
  * pipeline e de TODAS as contagens (funil, funil comercial, perfil, origem,
  * contadores do menu). Toda consulta sobre `teste7d_inscricoes i` passa por
  * aqui: em leads.ts via `leadsVisiveis` e em funil.ts via `condicoes`
- * (que o perfil, a origem e o funil comercial reaproveitam).
+ * (que o perfil, a origem e o funil comercial reaproveitam; os leads
+ * cadastrados à mão são outra regra, explícita, em `condicoes`).
  *
  * Arquivo sem dependências, pra poder ser importado por qualquer módulo de
  * consulta sem criar ciclo.

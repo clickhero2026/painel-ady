@@ -23,6 +23,15 @@ export function primeiroNome(nome: string | null | undefined): string {
   return nome?.trim().split(/\s+/)[0] ?? "";
 }
 
+/**
+ * Troca os marcadores {chave} de uma mensagem de src/config/contato.ts, numa
+ * passada só (um nome com "{link}" dentro não vira outra coisa). Marcador
+ * sem valor fica como está.
+ */
+export function preencherMensagem(modelo: string, valores: Record<string, string>): string {
+  return modelo.replace(/\{(\w+)\}/g, (marcador, chave: string) => (Object.hasOwn(valores, chave) ? valores[chave] : marcador));
+}
+
 /** Tempo desde `desde` em palavras: "3 dias", "5 horas", "menos de 1 hora". */
 export function tempoDesde(desde: Date | string, agora = Date.now()): string {
   const horas = Math.floor((agora - new Date(desde).getTime()) / 3_600_000);

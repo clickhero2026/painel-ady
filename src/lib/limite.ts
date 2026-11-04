@@ -47,3 +47,19 @@ export async function podeEnviarLinkMagico(email: string, ip: string | null): Pr
   const okIp = ip ? await contarTentativa(`painel:link-ip:${hash(ip)}`, porIp, janelaMs) : true;
   return okEmail && okIp;
 }
+
+/**
+ * Cadastro manual de lead (POST /api/leads): até 30 tentativas por usuário a
+ * cada 15 minutos, contando as recusadas. O "e-mail já existe" diz se um
+ * e-mail está na base; o limite impede que alguém use a tela para varrer
+ * e-mails (e cada tentativa que passa cria um lead de verdade, auditado).
+ */
+export const LIMITE_LEAD_MANUAL = {
+  janelaMs: 15 * 60 * 1000,
+  porUsuario: 30,
+} as const;
+
+export async function podeTentarCriarLead(usuarioId: string): Promise<boolean> {
+  const { janelaMs, porUsuario } = LIMITE_LEAD_MANUAL;
+  return contarTentativa(`painel:lead-manual:${hash(usuarioId)}`, porUsuario, janelaMs);
+}

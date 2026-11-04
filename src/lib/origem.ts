@@ -21,7 +21,8 @@ import { Parametros } from "./sql";
 
 /**
  * Bloco de origem do funil: mesmos cortes e definições de funil.ts, agrupando
- * pela origem normalizada (source / medium / campaign). Só agregados.
+ * pela origem normalizada (source / medium / campaign). Só agregados. Sem
+ * os leads cadastrados à mão no painel (LEAD_MANUAL, em funil.ts).
  *
  * Papel "leitura": a ocultação é feita UMA vez, na combinação completa
  * (source + medium + campaign), e as visões agregadas somam só o que ficou
@@ -101,7 +102,7 @@ async function combinacoes(f: FiltrosFunil): Promise<(Fina & { ativacoes: number
             (count(*) FILTER (WHERE ${ATIVOU}))::int AS ativacoes,
             (count(*) FILTER (WHERE ${AGENDOU}))::int AS agendamentos
        FROM teste7d_inscricoes i
-      WHERE ${condicoes(f, p)}
+      WHERE ${condicoes(f, p, "excluir")}
       GROUP BY 1, 2, 3`,
     p.valores,
   );

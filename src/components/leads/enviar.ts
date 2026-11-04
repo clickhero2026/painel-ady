@@ -3,7 +3,7 @@ export async function enviar<T = Record<string, unknown>>(
   url: string,
   method: "POST" | "PUT" | "DELETE",
   corpo?: unknown,
-): Promise<{ ok: true; dados: T } | { ok: false; status: number; mensagem: string }> {
+): Promise<{ ok: true; dados: T } | { ok: false; status: number; mensagem: string; dados: Record<string, unknown> }> {
   try {
     const resposta = await fetch(url, {
       method,
@@ -21,8 +21,8 @@ export async function enviar<T = Record<string, unknown>>(
           : resposta.status === 404
             ? "Lead não encontrado. Atualize a página."
             : "Não deu para gravar. Tente de novo.";
-    return { ok: false, status: resposta.status, mensagem };
+    return { ok: false, status: resposta.status, mensagem, dados };
   } catch {
-    return { ok: false, status: 0, mensagem: "Sem conexão. Tente de novo." };
+    return { ok: false, status: 0, mensagem: "Sem conexão. Tente de novo.", dados: {} };
   }
 }

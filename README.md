@@ -16,24 +16,29 @@ link mágico por e-mail. Não há regra por domínio. O primeiro admin vem de
 `PAINEL_ADMIN_INICIAL` (só com a tabela vazia); os demais, da tela
 **Usuários**.
 
-| Papel   | Início | Leads (lista, ficha, link de ativação) | Atribuir responsável | Marcar reunião / Reuniões para fechar | Funil (agregado) | CSV do funil | Perfil (agregado)          | Usuários |
-| ------- | :----: | :------------------------------------: | :------------------: | :-----------------------------------: | :--------------: | :----------: | :------------------------: | :------: |
-| admin   |   ✓    |                 todos                  |          ✓           |                   ✓                   |        ✓         |      ✓       |             ✓              |    ✓     |
-| suporte |   ✓    |                 todos                  |          —           |                   ✓                   |        ✓         |      —       |             ✓              |    —     |
-| vendas  |   ✓    |      só os seus (os outros dão 404)    |          —           |                   —                   |        ✓         |      —       |             ✓              |    —     |
-| leitura |   ✓    |                   —                    |          —           |                   —                   |        ✓         |      —       | ✓, células de 1 a 4 ocultas |    —     |
+| Papel   | Início | Leads (lista, ficha, link de ativação) | Novo lead (cadastro manual) | Atribuir responsável | Marcar reunião / Reuniões para fechar | Funil (agregado) | CSV do funil | Perfil (agregado)          | Usuários |
+| ------- | :----: | :------------------------------------: | :-------------------------: | :------------------: | :-----------------------------------: | :--------------: | :----------: | :------------------------: | :------: |
+| admin   |   ✓    |                 todos                  |  ✓ (escolhe o responsável)  |          ✓           |                   ✓                   |        ✓         |      ✓       |             ✓              |    ✓     |
+| suporte |   ✓    |                 todos                  |              —              |          —           |                   ✓                   |        ✓         |      —       |             ✓              |    —     |
+| vendas  |   ✓    |      só os seus (os outros dão 404)    |    ✓ (fica responsável)     |          —           |                   —                   |        ✓         |      —       |             ✓              |    —     |
+| leitura |   ✓    |                   —                    |              —              |          —           |                   —                   |        ✓         |      —       | ✓, células de 1 a 4 ocultas |    —     |
 
 Toda consulta de lead passa por `leadsVisiveis` (`src/lib/leads.ts`).
 Atribuição em `src/lib/atribuicao.ts` (só vendas ou admin ativos podem ser
 responsáveis; idempotente; auditoria `atribuir_lead`); desfecho da reunião
 em `src/lib/reuniao.ts` (UPDATE condicional a partir de `agendado`,
-desfazer em até 24 h). Os
+desfazer em até 24 h). Cadastro manual de lead ("Novo lead", `/leads/novo` e
+`POST /api/leads`) em `src/lib/leadManual.ts`: grava com `utm_source =
+'manual'`, a pessoa preenche a ativação pelo link de ativação e o lead fica
+fora dos indicadores de marketing (funil, origem, perfil), mas entra na lista,
+no pipeline e no funil comercial. Os
 indicadores do funil (só agregados, sem dado pessoal) saem todos de
 `src/lib/funil.ts`, onde estão as definições de cada etapa; o perfil
 (`src/lib/perfil.ts`) usa as mesmas definições e cortes, e oculta no
 servidor as células pequenas para o papel leitura. Regras
 editáveis: checklist de prontidão em `src/config/prontidao.ts`; mensagem do
-WhatsApp e endereço do link de ativação em `src/config/contato.ts`. O mapa de
+WhatsApp (a do lead manual e a mensagem com o link de ativação) e endereço
+do link de ativação em `src/config/contato.ts`. O mapa de
 respostas (`src/lib/teste7dOptions.ts`) é cópia do site.
 
 O papel é relido de `painel_usuarios` a cada requisição (o da sessão é só

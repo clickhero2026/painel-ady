@@ -24,6 +24,8 @@ import { FUSO_SQL, Parametros } from "./sql";
  * Só agregados: nenhuma coluna de dado pessoal é lida aqui. Os cortes são
  * globais (não dependem do papel nem do responsável pelo lead). Cadastros
  * mesclados em outro ficam fora de tudo (`condicoes` aplica NAO_MESCLADO).
+ * Leads cadastrados à mão no painel (LEAD_MANUAL) ficam fora daqui, do
+ * perfil e da origem; o funil comercial os inclui (parâmetro `manuais`).
  */
 
 /** Etapas, como condição SQL sobre `teste7d_inscricoes i` (usadas também pelo perfil). */
@@ -85,10 +87,30 @@ export function mascararOrigem(valor: string): string {
   return PARECE_PESSOAL.some((r) => r.test(valor)) ? ORIGEM_MASCARADA : valor;
 }
 
+// ── Leads cadastrados à mão no painel ──
+
+/** utm_source gravado pelo cadastro manual (leadManual.ts), já normalizado. */
+export const ORIGEM_MANUAL = "manual";
+/**
+ * Lead cadastrado à mão no painel (origem normalizada = "manual"). Não veio
+ * de anúncio: fica FORA dos indicadores de marketing (funil, criativo,
+ * campanha, versão, origem, perfil e as opções de criativo e campanha) e
+ * DENTRO do que é operação (lista, pipeline, ficha, contadores do menu e
+ * funil comercial).
+ */
+export const LEAD_MANUAL = `${SOURCE} = '${ORIGEM_MANUAL}'`;
+
+/**
+ * Os leads manuais entram no recorte? Sem padrão de propósito: cada consulta
+ * diz o que quer. Indicadores de marketing: "excluir"; funil comercial: "incluir".
+ */
+export type Manuais = "incluir" | "excluir";
+
 /** Condições SQL dos cortes (todas sobre `teste7d_inscricoes i`). */
-export function condicoes(f: FiltrosFunil, p: Parametros): string {
+export function condicoes(f: FiltrosFunil, p: Parametros, manuais: Manuais): string {
   // Cadastro mesclado em outro não conta em lugar nenhum (escopo.ts).
   const where = [NAO_MESCLADO];
+  if (manuais === "excluir") where.push(`NOT (${LEAD_MANUAL})`);
   // Limites do dia em São Paulo, convertidos pra instante: usa o índice de created_at.
   if (f.de) where.push(`i.created_at >= (${p.add(f.de)}::date::timestamp AT TIME ZONE '${FUSO_SQL}')`);
   if (f.ate) where.push(`i.created_at < ((${p.add(f.ate)}::date + 1)::timestamp AT TIME ZONE '${FUSO_SQL}')`);
@@ -201,7 +223,7 @@ async function resumo(f: FiltrosFunil): Promise<Resumo> {
             ${mediana("i.agendado_em", "i.etapa2_concluida_em")} AS m_agendamento,
             ${mediana("i.realizada_em", "i.agendado_em")} AS m_realizada
        FROM teste7d_inscricoes i
-      WHERE ${condicoes(f, p)}`,
+      WHERE ${condicoes(f, p, "excluir")}`,
     p.valores,
   );
   const l = rows[0];
@@ -222,7 +244,7 @@ async function comparativo(f: FiltrosFunil, coluna: "i.utm_content" | "i.lp_vari
   const { rows } = await pool().query<LinhaContagem & { grupo: string | null }>(
     `SELECT ${coluna} AS grupo, ${CONTAGENS}
        FROM teste7d_inscricoes i
-      WHERE ${condicoes(f, p)}
+      WHERE ${condicoes(f, p, "excluir")}
       GROUP BY ${coluna}`,
     p.valores,
   );
@@ -240,7 +262,7 @@ async function serie(f: FiltrosFunil, agora: Date): Promise<DiaDaSerie[]> {
   const { rows } = await pool().query<{ dia: string; cadastros: number }>(
     `SELECT to_char(${DIA_SP}, 'YYYY-MM-DD') AS dia, count(*)::int AS cadastros
        FROM teste7d_inscricoes i
-      WHERE ${condicoes(f, p)}
+      WHERE ${condicoes(f, p, "excluir")}
       GROUP BY 1
       ORDER BY 1`,
     p.valores,
@@ -302,7 +324,7 @@ async function abandono(f: FiltrosFunil): Promise<IndicadoresFunil["abandono"]> 
   const { rows } = await pool().query<{ parou: string; n: number }>(
     `SELECT ${PAROU_EM} AS parou, count(*)::int AS n
        FROM teste7d_inscricoes i
-      WHERE ${condicoes(f, p)}
+      WHERE ${condicoes(f, p, "excluir")}
       GROUP BY 1`,
     p.valores,
   );
@@ -392,16 +414,19 @@ export interface OpcoesDoFunil {
 }
 
 /**
- * Valores existentes de cada corte (de todos os cadastros). Campanha, origem
+ * Valores existentes de cada corte (de todos os cadastros; criativo e
+ * campanha sem os leads manuais). Campanha, origem
  * e mídia já normalizadas. Para "leitura", valor de poucos cadastros não
  * aparece na lista: o nome de uma origem rara não sai por aqui.
  */
 export async function opcoesDoFunil(papel: Papel): Promise<OpcoesDoFunil> {
   const minimo = papel === "leitura" ? MINIMO_LEITURA : 1;
-  const distintos = async (expressao: string) =>
+  const distintos = async (expressao: string, semManuais: boolean) =>
     (
       await pool().query<{ v: string }>(
-        `SELECT ${expressao} AS v FROM teste7d_inscricoes i WHERE ${NAO_MESCLADO} GROUP BY 1 HAVING count(*) >= ${minimo} ORDER BY 1 LIMIT 500`,
+        `SELECT ${expressao} AS v FROM teste7d_inscricoes i
+          WHERE ${NAO_MESCLADO}${semManuais ? ` AND NOT (${LEAD_MANUAL})` : ""}
+          GROUP BY 1 HAVING count(*) >= ${minimo} ORDER BY 1 LIMIT 500`,
       )
     ).rows
       .map((r) => r.v)
@@ -410,12 +435,14 @@ export async function opcoesDoFunil(papel: Papel): Promise<OpcoesDoFunil> {
     (
       await pool().query<{ v: string }>(
         `SELECT DISTINCT i.utm_content AS v FROM teste7d_inscricoes i
-          WHERE i.utm_content IS NOT NULL AND ${NAO_MESCLADO} ORDER BY 1 LIMIT 500`,
+          WHERE i.utm_content IS NOT NULL AND ${NAO_MESCLADO} AND NOT (${LEAD_MANUAL}) ORDER BY 1 LIMIT 500`,
       )
     ).rows.map((r) => r.v),
-    distintos(CAMPAIGN),
-    distintos(SOURCE),
-    distintos(MEDIUM),
+    // Criativo e campanha: sem os leads manuais (não vieram de anúncio).
+    distintos(CAMPAIGN, true),
+    // Origem e mídia: com eles, para dar para recortar o funil comercial por "manual".
+    distintos(SOURCE, false),
+    distintos(MEDIUM, false),
   ]);
   return { criativos, campanhas, origens, midias };
 }

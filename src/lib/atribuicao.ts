@@ -1,5 +1,5 @@
 import { registrarAuditoria } from "./auditoria";
-import { pool, transacao } from "./db";
+import { pool, transacao, type Consulta } from "./db";
 import { NAO_MESCLADO } from "./escopo";
 
 /**
@@ -53,6 +53,23 @@ export interface ResultadoAtribuicao {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * Relê e trava (FOR SHARE, dentro da transação de quem chama) quem vai ser
+ * responsável: usuário ativo com papel vendas ou admin. Lança ErroAtribuicao
+ * se não puder. Usada aqui e no cadastro manual de lead (leadManual.ts).
+ */
+export async function responsavelValido(db: Consulta, usuarioId: string): Promise<{ id: string; nome: string }> {
+  if (!UUID.test(usuarioId)) throw new ErroAtribuicao("Pedido inválido.");
+  const { rows } = await db.query<{ id: string; nome: string }>(
+    `SELECT id, coalesce(nome, email) AS nome FROM painel_usuarios
+      WHERE id = $1 AND ativo AND papel IN ('admin', 'vendas')
+      FOR SHARE`,
+    [usuarioId],
+  );
+  if (!rows[0]) throw new ErroAtribuicao("Este usuário não pode ser responsável: só usuários ativos com papel vendas ou admin.");
+  return rows[0];
+}
+
+/**
  * Atribui `leadIds` a `usuarioId` (null = sem responsável). Lança
  * ErroAtribuicao com mensagem pronta para a tela, ou LeadNaoEncontrado.
  */
@@ -67,17 +84,7 @@ export async function atribuir(leadIds: string[], usuarioId: string | null, porI
   return transacao(async (db) => {
     await db.query("SELECT pg_advisory_xact_lock($1)", [TRAVA_ATRIBUICAO]);
 
-    let novo: { id: string; nome: string } | null = null;
-    if (usuarioId) {
-      const { rows } = await db.query<{ id: string; nome: string }>(
-        `SELECT id, coalesce(nome, email) AS nome FROM painel_usuarios
-          WHERE id = $1 AND ativo AND papel IN ('admin', 'vendas')
-          FOR SHARE`,
-        [usuarioId],
-      );
-      novo = rows[0] ?? null;
-      if (!novo) throw new ErroAtribuicao("Este usuário não pode ser responsável: só usuários ativos com papel vendas ou admin.");
-    }
+    const novo = usuarioId ? await responsavelValido(db, usuarioId) : null;
 
     const { rows: existentes } = await db.query<{ id: string; anterior_id: string | null; anterior_nome: string | null }>(
       `SELECT i.id, r.usuario_id AS anterior_id, coalesce(u.nome, u.email) AS anterior_nome

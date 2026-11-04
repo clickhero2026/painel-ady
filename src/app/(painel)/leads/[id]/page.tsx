@@ -14,11 +14,19 @@ import { EtiquetaComercial } from "@/components/pipeline/EtiquetaComercial";
 import { MudarEtapa } from "@/components/pipeline/MudarEtapa";
 import { Aviso } from "@/components/ui/Aviso";
 import { botao } from "@/components/ui/estilos";
-import { MENSAGEM_WHATSAPP, VALIDADE_LINK_ATIVACAO_DIAS } from "@/config/contato";
+import { MENSAGEM_WHATSAPP, MENSAGEM_WHATSAPP_MANUAL, VALIDADE_LINK_ATIVACAO_DIAS } from "@/config/contato";
 import { ETAPA_PERDIDO, posicaoDaEtapa, rotuloEtapaComercial, rotuloMotivo } from "@/config/pipeline";
 import { anotacoesDe, podeAnotar, type Anotacao } from "@/lib/anotacoes";
 import { rotuloEtapa } from "@/lib/etapas";
-import { diasDesde, formatarData, formatarDataHora, formatarWhatsapp, passouDias, primeiroNome } from "@/lib/formatos";
+import {
+  diasDesde,
+  formatarData,
+  formatarDataHora,
+  formatarWhatsapp,
+  passouDias,
+  preencherMensagem,
+  primeiroNome,
+} from "@/lib/formatos";
 import { abrirFicha, principalVisivelDe, type Ficha } from "@/lib/leads";
 import { cadastrosMescladosEm, duplicadosSugeridosPara, podeMesclar, type CadastroMesclado } from "@/lib/mescla";
 import { historicoDeEtapas, podeMudarEtapa, type MudancaNoHistorico } from "@/lib/pipeline";
@@ -30,7 +38,7 @@ import { exigirUsuario } from "@/lib/sessao";
 
 export const metadata: Metadata = { title: "Ficha do lead" };
 
-export default async function PaginaFicha({ params }: PageProps<"/leads/[id]">) {
+export default async function PaginaFicha({ params, searchParams }: PageProps<"/leads/[id]">) {
   const usuario = await exigirUsuario(ACESSO_ROTAS.leads);
   // Lead alheio (vendas) ou inexistente: 404, sem diferença entre os dois.
   const id = (await params).id;
@@ -42,12 +50,16 @@ export default async function PaginaFicha({ params }: PageProps<"/leads/[id]">) 
     notFound();
   }
 
-  const mensagem = MENSAGEM_WHATSAPP.replaceAll("{nome}", primeiroNome(lead.nome)).replaceAll(
-    "{atendente}",
-    primeiroNome(usuario.nome) || "a equipe",
-  );
+  // Lead cadastrado à mão não "se cadastrou no teste": mensagem própria.
+  const mensagem = preencherMensagem(lead.cadastro_manual ? MENSAGEM_WHATSAPP_MANUAL : MENSAGEM_WHATSAPP, {
+    nome: primeiroNome(lead.nome),
+    atendente: primeiroNome(usuario.nome) || "a equipe",
+  });
   const linkWhatsapp = `https://wa.me/${lead.whatsapp}?text=${encodeURIComponent(mensagem)}`;
   const linkPodeTerVencido = passouDias(lead.created_at, VALIDADE_LINK_ATIVACAO_DIAS);
+  const linkValeAte = new Date(new Date(lead.created_at).getTime() + VALIDADE_LINK_ATIVACAO_DIAS * 86_400_000);
+  // Recém-cadastrado pela tela "Novo lead" (só muda o aviso; nada é gravado).
+  const recemCadastrado = lead.cadastro_manual && (await searchParams).novo === "1";
   const podeAtribuir = podeAcessar(usuario.papel, "atribuir");
   const podeMarcar = podeAcessar(usuario.papel, "marcarReuniao");
   const mesclador = podeMesclar(usuario.papel);
@@ -76,9 +88,25 @@ export default async function PaginaFicha({ params }: PageProps<"/leads/[id]">) 
         Voltar para os leads
       </Link>
 
+      {recemCadastrado && (
+        <div className="mt-2">
+          <Aviso tipo="sucesso">
+            Lead cadastrado. Agora copie o link de ativação (ou a mensagem pronta com o link) e mande para a pessoa: ela
+            mesma preenche a ativação.
+          </Aviso>
+        </div>
+      )}
+
       <header className="mt-2 rounded-2xl border border-borda bg-fundo p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
+            {lead.cadastro_manual && (
+              <p className="mb-1">
+                <span className="inline-block rounded-full bg-petroleo-suave px-2.5 py-0.5 text-xs font-semibold text-petroleo-escuro">
+                  Cadastro manual
+                </span>
+              </p>
+            )}
             <h1 className="text-2xl font-semibold wrap-anywhere sm:text-3xl">{lead.nome}</h1>
             <p className="mt-1 text-sm text-texto-suave">
               Responsável: {lead.responsavel_nome ?? "sem responsável"}
@@ -118,12 +146,38 @@ export default async function PaginaFicha({ params }: PageProps<"/leads/[id]">) 
             Abrir conversa no WhatsApp
             <span className="sr-only">(abre em outra aba)</span>
           </a>
-          <CopiarLinkAtivacao leadId={lead.id} />
+          {!lead.cadastro_manual && <CopiarLinkAtivacao leadId={lead.id} />}
         </div>
-        {linkPodeTerVencido && (
+        {!lead.cadastro_manual && linkPodeTerVencido && (
           <p className="mt-2 text-sm text-atencao">
             O link de ativação vale {VALIDADE_LINK_ATIVACAO_DIAS} dias desde o cadastro; o deste lead pode ter vencido.
           </p>
+        )}
+
+        {lead.cadastro_manual && (
+          <section aria-labelledby="titulo-link-ativacao" className="mt-5 rounded-lg border border-borda bg-superficie p-4">
+            <h2 id="titulo-link-ativacao" className="font-semibold">
+              Link de ativação
+            </h2>
+            <p className="mt-1 text-sm">
+              Mande para a pessoa: com ele, ela mesma preenche a ativação do teste grátis.{" "}
+              {linkPodeTerVencido ? (
+                <strong className="font-semibold text-atencao">
+                  O link venceu em {formatarData(linkValeAte)} ({VALIDADE_LINK_ATIVACAO_DIAS} dias desde o cadastro).
+                </strong>
+              ) : (
+                <>
+                  Vale até <strong className="font-semibold">{formatarData(linkValeAte)}</strong> ({VALIDADE_LINK_ATIVACAO_DIAS}{" "}
+                  dias desde o cadastro).
+                </>
+              )}
+            </p>
+            {/* Grade: a confirmação de cópia quebra dentro da coluna, sem empurrar o outro botão. */}
+            <div className="mt-3 grid items-start gap-3 sm:grid-cols-2">
+              <CopiarLinkAtivacao leadId={lead.id} formato="mensagem" />
+              <CopiarLinkAtivacao leadId={lead.id} />
+            </div>
+          </section>
         )}
       </header>
 

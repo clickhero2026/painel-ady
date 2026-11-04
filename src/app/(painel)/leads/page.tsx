@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { UserPlus } from "lucide-react";
 import { EtiquetaEtapa } from "@/components/leads/EtiquetaEtapa";
 import { EtiquetaComercial } from "@/components/pipeline/EtiquetaComercial";
 import { CaixaDoLead, SelecaoEmLote } from "@/components/leads/SelecaoEmLote";
@@ -50,12 +51,22 @@ export default async function PaginaLeads({ searchParams }: PageProps<"/leads">)
 
   return (
     <div className="mx-auto max-w-6xl">
-      <h1 className="text-2xl font-semibold sm:text-3xl">Leads</h1>
-      <p className="mt-1 text-texto-suave">
-        {usuario.papel === "vendas"
-          ? "Os cadastros do teste grátis dos quais você é responsável."
-          : "Os cadastros do teste grátis de 7 dias."}
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold sm:text-3xl">Leads</h1>
+          <p className="mt-1 text-texto-suave">
+            {usuario.papel === "vendas"
+              ? "Os cadastros do teste grátis dos quais você é responsável."
+              : "Os cadastros do teste grátis de 7 dias."}
+          </p>
+        </div>
+        {podeAcessar(usuario.papel, "criarLead") && (
+          <Link href="/leads/novo" className={botao.primario}>
+            <UserPlus size={18} aria-hidden="true" />
+            Novo lead
+          </Link>
+        )}
+      </div>
 
       <nav aria-label="Visões" className="mt-6">
         <ul className="flex flex-wrap gap-2">

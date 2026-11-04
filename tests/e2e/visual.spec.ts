@@ -217,6 +217,7 @@ test("texto a 200% sem cortar (1280px)", async ({ page }) => {
     "/",
     "/leads",
     "/leads?visao=para_fechar",
+    "/leads/novo",
     `/leads/${LEAD.id}`,
     "/pipeline",
     "/pipeline?modo=lista",

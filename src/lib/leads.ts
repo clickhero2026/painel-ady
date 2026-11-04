@@ -1,10 +1,12 @@
 import { registrarAuditoria } from "./auditoria";
-import { URL_ATIVAR_CONTA } from "@/config/contato";
+import { MENSAGEM_LINK_ATIVACAO, URL_ATIVAR_CONTA } from "@/config/contato";
 import { ETAPA_INICIAL, ETAPAS_COMERCIAIS, type EtapaComercial } from "@/config/pipeline";
 import { pool } from "./db";
 import { NAO_MESCLADO } from "./escopo";
 import { ETAPAS_PARADAS } from "./etapas";
 import { POR_PAGINA, type FiltrosLeads, type Ordem } from "./filtrosLeads";
+import { preencherMensagem, primeiroNome } from "./formatos";
+import { LEAD_MANUAL } from "./funil";
 import type { Papel } from "./papeis";
 import { Parametros } from "./sql";
 
@@ -21,7 +23,8 @@ import { Parametros } from "./sql";
  *
  * Colunas sempre listadas uma a uma (nunca i.*): o painel_app só enxerga as
  * colunas liberadas em db/grants/painel_app.sql. O token de retomada só é
- * lido em `linkDeAtivacao`.
+ * lido em `paraAtivacao` (link e mensagem de ativação). O cadastro manual
+ * (INSERT) fica em leadManual.ts.
  */
 
 export interface QuemConsulta {
@@ -219,7 +222,9 @@ export async function opcoesDeFiltro(usuario: QuemConsulta): Promise<OpcoesDeFil
   const distintos = async (coluna: string) =>
     (
       await pool().query<{ v: string }>(
-        `SELECT DISTINCT ${coluna} AS v FROM ${ORIGEM} WHERE ${escopo} AND ${coluna} IS NOT NULL ORDER BY 1 LIMIT 500`,
+        // Sem os leads cadastrados à mão (não vieram de anúncio; ver funil.ts).
+        `SELECT DISTINCT ${coluna} AS v FROM ${ORIGEM}
+          WHERE ${escopo} AND ${coluna} IS NOT NULL AND NOT (${LEAD_MANUAL}) ORDER BY 1 LIMIT 500`,
         p.valores,
       )
     ).rows.map((r) => r.v);
@@ -278,6 +283,8 @@ export interface Ficha {
   na_etapa_desde: Date;
   motivo_perda: string | null;
   motivo_perda_texto: string | null;
+  /** Cadastrado à mão no painel (origem normalizada "manual"; ver leadManual.ts). */
+  cadastro_manual: boolean;
 }
 
 /** Colunas da ficha. Fora de propósito: ip_hash, user_agent, fbclid e o token. */
@@ -289,7 +296,8 @@ const COLUNAS_FICHA = `i.id, i.created_at, i.nome, i.email, i.whatsapp,
   i.agendado_em, i.reuniao_em, i.realizada_em, i.status, i.ultima_retomada_em,
   CASE WHEN ${RESPONSAVEL_VALIDO} THEN ru.id END AS responsavel_id,
   ${NOME_RESPONSAVEL} AS responsavel_nome,
-  ${ETAPA_ATUAL} AS etapa_comercial, ${NA_ETAPA_DESDE} AS na_etapa_desde, e.motivo_perda, e.motivo_perda_texto`;
+  ${ETAPA_ATUAL} AS etapa_comercial, ${NA_ETAPA_DESDE} AS na_etapa_desde, e.motivo_perda, e.motivo_perda_texto,
+  ${LEAD_MANUAL} AS cadastro_manual`;
 
 /** Caminho de uma URL, sem host, query string nem fragmento; null se não for URL. */
 export function caminhoDaUrl(url: string | null): string | null {
@@ -341,22 +349,45 @@ export async function principalVisivelDe(usuario: QuemConsulta, id: string): Pro
   return rows[0]?.id ?? null;
 }
 
-/**
- * Link de ativação (com o token de retomada) de um lead visível, ou null.
- * Único lugar que lê token_retomada. Grava `copiar_link` na auditoria
- * (sem o token).
- */
-export async function linkDeAtivacao(usuario: QuemConsulta, id: string): Promise<string | null> {
+/** Token e nome de um lead visível, ou null. Único lugar que lê token_retomada. */
+async function paraAtivacao(usuario: QuemConsulta, id: string): Promise<{ token: string; nome: string } | null> {
   if (!UUID.test(id)) return null;
   const p = new Parametros();
-  const { rows } = await pool().query<{ token_retomada: string | null }>(
-    `SELECT i.token_retomada FROM ${ORIGEM} WHERE ${leadsVisiveis(usuario, p)} AND i.id = ${p.add(id)}`,
+  const { rows } = await pool().query<{ token_retomada: string | null; nome: string }>(
+    `SELECT i.token_retomada, i.nome FROM ${ORIGEM} WHERE ${leadsVisiveis(usuario, p)} AND i.id = ${p.add(id)}`,
     p.valores,
   );
-  const token = rows[0]?.token_retomada;
-  if (!token) return null;
+  const linha = rows[0];
+  return linha?.token_retomada ? { token: linha.token_retomada, nome: linha.nome } : null;
+}
+
+const montarLink = (token: string) => `${URL_ATIVAR_CONTA}?t=${encodeURIComponent(token)}`;
+
+/**
+ * Link de ativação (com o token de retomada) de um lead visível, ou null.
+ * Grava `copiar_link` na auditoria (sem o token).
+ */
+export async function linkDeAtivacao(usuario: QuemConsulta, id: string): Promise<string | null> {
+  const lead = await paraAtivacao(usuario, id);
+  if (!lead) return null;
   await registrarAuditoria({ usuarioId: usuario.id, acao: "copiar_link", leadId: id });
-  return `${URL_ATIVAR_CONTA}?t=${encodeURIComponent(token)}`;
+  return montarLink(lead.token);
+}
+
+/**
+ * Mensagem pronta com o link de ativação (MENSAGEM_LINK_ATIVACAO), montada
+ * aqui no servidor, de um lead visível; null se não for visível. Grava
+ * `copiar_link` (formato "mensagem") na auditoria, sem o token nem o texto.
+ */
+export async function mensagemDeAtivacao(usuario: QuemConsulta, id: string, atendente: string | null): Promise<string | null> {
+  const lead = await paraAtivacao(usuario, id);
+  if (!lead) return null;
+  await registrarAuditoria({ usuarioId: usuario.id, acao: "copiar_link", leadId: id, detalhe: { formato: "mensagem" } });
+  return preencherMensagem(MENSAGEM_LINK_ATIVACAO, {
+    nome: primeiroNome(lead.nome),
+    atendente: primeiroNome(atendente) || "a equipe",
+    link: montarLink(lead.token),
+  });
 }
 
 // ── Contadores do menu ──

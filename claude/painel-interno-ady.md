@@ -174,6 +174,7 @@ Como o funil aparece nos dados:
 | Mudar etapa comercial | todos | não (só vê) | só os seus | não |
 | Anotações internas (ler e escrever; sem editar nem apagar) | todos | todos | só os seus | não |
 | Mesclar e desfazer mescla; "Possíveis duplicados" | sim | não | não | não |
+| Cadastrar lead à mão ("Novo lead") | sim (escolhe o responsável ou nenhum) | não | sim (fica responsável) | não |
 | Tela Pipeline (quadro e lista) | todos, com filtro por responsável | todos, só leitura | só os seus (sem os sem responsável) | não |
 | Funil comercial (agregados) | sim, com corte por responsável | sim, com corte por responsável | sim, sem corte por responsável | sim, sem corte por responsável e com células de 1 a 4 ocultas |
 | Indicadores e perfil agregados | sim | sim | sim (padrão sugerido) | sim, sem dados pessoais |
@@ -182,7 +183,7 @@ Como o funil aparece nos dados:
 
 A restrição por papel e por responsável deve ser aplicada **no acesso a dados do servidor**, em uma função única (por exemplo `leadsVisiveis(usuario)`), e não só escondendo itens na interface. Teste obrigatório: um vendedor não consegue ler a ficha de um lead alheio nem pela URL direta nem pela API.
 
-Etapa, anotações e mescla passam pela mesma `leadsVisiveis`: o que não é do vendedor responde 404; papel sem a permissão responde 403. Cadastros mesclados em outro somem de todas as listas e contagens por uma condição central (`src/lib/escopo.ts`). Cada ação nova grava auditoria: `mudar_etapa`, `anotar_lead` (sem o texto), `mesclar_leads`, `desfazer_mescla`.
+Etapa, anotações e mescla passam pela mesma `leadsVisiveis`: o que não é do vendedor responde 404; papel sem a permissão responde 403. Cadastros mesclados em outro somem de todas as listas e contagens por uma condição central (`src/lib/escopo.ts`). Cada ação nova grava auditoria: `mudar_etapa`, `anotar_lead` (sem o texto), `mesclar_leads`, `desfazer_mescla`, `criar_lead` (só via e responsável, sem nome, e-mail nem WhatsApp).
 
 ## 8. Segurança e LGPD (requisitos)
 
@@ -466,3 +467,15 @@ Integração com o Bitrix24 (ler ou escrever), cobrança, integração de pagame
 10. **Pipeline:** quadro e lista; vendedor vê só os seus; Fechado e Perdido mostram os últimos 30 dias por padrão; até 50 cartões por coluna com "ver mais".
 11. **Funil comercial:** agregados para todos os papéis, com a mesma coorte e os mesmos cortes do funil; corte por responsável só para admin e suporte; para leitura, células de 1 a 4 ocultas no servidor, com proteção contra subtração igual à do Perfil.
 12. Tabelas novas: `painel_lead_etapa`, `painel_lead_etapa_historico` (só INSERT), `painel_lead_anotacao` (só INSERT), `painel_lead_mescla`. Migração `db/migrations/20261103_painel_pipeline.sql` e GRANTs em `db/grants/painel_app_pipeline.sql` (repetidos no fim de `db/grants/painel_app.sql`).
+
+## 13.2 Decisões fechadas em 04/11/2026 (cadastro manual de lead)
+
+1. **Botão "Novo lead"** no topo de /leads e página /leads/novo, só para **admin e vendas** (conferido no servidor; suporte e leitura recebem 403 na tela e na API). Regra em `src/lib/leadManual.ts`; API `POST /api/leads`.
+2. **Campos:** nome (2 a 120 caracteres), WhatsApp e **e-mail obrigatório** (até 180, minúsculo). O WhatsApp é normalizado igual ao site (`normalizeWhatsappBR` de clickhero2026/site-ady, portado em `src/lib/validacaoLead.ts`). Anotação interna inicial opcional, gravada como qualquer anotação.
+3. **Origem:** `utm_source = 'manual'`; as outras colunas de rastreio ficam vazias. Status, token de retomada e data do cadastro vêm do DEFAULT do banco. O painel_app ganha só `GRANT INSERT (nome, email, whatsapp, utm_source)` em `teste7d_inscricoes` (`db/grants/painel_app_lead_manual.sql`, repetido no fim de `db/grants/painel_app.sql`). `teste7d_inscricoes` não muda; o site não muda.
+4. **Responsável:** vendas fica com o lead; admin escolhe um usuário ativo de vendas ou admin, ou deixa sem responsável (vai para a fila "Sem responsável").
+5. **Etapa 2 pelo link:** o lead preenche a ativação pelo link de ativação (`/ativar-conta?t=<token>`, vale 30 dias desde o cadastro); o vendedor não preenche por ele. A ficha do lead manual mostra a etiqueta "Cadastro manual", a validade do link e os botões "Copiar mensagem com o link" (texto `MENSAGEM_LINK_ATIVACAO`, montado no servidor e auditado como `copiar_link`) e "Copiar link de ativação". O botão de WhatsApp usa `MENSAGEM_WHATSAPP_MANUAL`.
+6. **E-mail repetido** (mesmo e-mail, sem diferença de maiúsculas): recusa com "Já existe um cadastro com este e-mail." Se o lead dono do e-mail é visível para quem tentou (e não foi mesclado), a tela oferece o link para a ficha dele; se não, só a mensagem, sem nenhum dado do dono. Até 30 tentativas por usuário a cada 15 minutos (`src/lib/limite.ts`), para ninguém usar a tela para varrer e-mails.
+7. **WhatsApp repetido** grava normalmente e aparece em "Possíveis duplicados" do admin.
+8. **Estatísticas:** lead com origem normalizada `manual` (mesma normalização de `origemNormalizada`) fica **fora** do funil (resumo, criativo, campanha, versão, série e abandono), do bloco de origem, do perfil e das opções de criativo e campanha; fica **dentro** da lista, do pipeline, da ficha, dos contadores do menu e do funil comercial. Em código: `condicoes(f, p, "incluir" | "excluir")` em `src/lib/funil.ts`, parâmetro obrigatório em cada consulta (funil, perfil e origem excluem; funil comercial inclui). A opção de origem "manual" continua na lista de origens, para recortar o funil comercial.
+9. **Auditoria:** `criar_lead` com `lead_id` e detalhe `{ via, responsavel_id }`, sem nome, e-mail nem WhatsApp.

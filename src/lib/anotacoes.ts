@@ -1,6 +1,6 @@
 import { MAX_ANOTACAO } from "@/config/pipeline";
 import { registrarAuditoria } from "./auditoria";
-import { pool, transacao } from "./db";
+import { pool, transacao, type Consulta } from "./db";
 import { leadsVisiveis, ORIGEM, UUID, type QuemConsulta } from "./leads";
 import type { Papel } from "./papeis";
 import { Parametros } from "./sql";
@@ -59,18 +59,28 @@ export async function anotar(usuario: QuemConsulta, leadId: string, texto: unkno
     const visivel = await db.query(`SELECT 1 FROM ${ORIGEM} WHERE ${leadsVisiveis(usuario, p)} AND i.id = ${p.add(leadId)}`, p.valores);
     if (visivel.rows.length === 0) throw new ErroAnotacao("Lead não encontrado.", "nao_encontrado");
 
-    const { rows } = await db.query<Anotacao>(
-      `INSERT INTO painel_lead_anotacao (lead_id, usuario_id, texto) VALUES ($1, $2, $3)
-       RETURNING id::text AS id, lead_id, texto, criado_em,
-                 (SELECT coalesce(nome, email) FROM painel_usuarios WHERE id = $2) AS autor`,
-      [leadId, usuario.id, limpo],
-    );
-    await registrarAuditoria(
-      { usuarioId: usuario.id, acao: "anotar_lead", leadId, detalhe: { anotacao_id: rows[0].id, tamanho: limpo.length } },
-      db,
-    );
-    return rows[0];
+    return gravarAnotacao(db, usuario, leadId, limpo);
   });
+}
+
+/**
+ * INSERT da anotação e auditoria `anotar_lead` (sem o texto), na transação
+ * de quem chama. `limpo` já passou por validarTexto e quem chama já conferiu
+ * que o lead é visível para `usuario`. Usada por `anotar` e pelo cadastro
+ * manual de lead (anotação inicial).
+ */
+export async function gravarAnotacao(db: Consulta, usuario: QuemConsulta, leadId: string, limpo: string): Promise<Anotacao> {
+  const { rows } = await db.query<Anotacao>(
+    `INSERT INTO painel_lead_anotacao (lead_id, usuario_id, texto) VALUES ($1, $2, $3)
+     RETURNING id::text AS id, lead_id, texto, criado_em,
+               (SELECT coalesce(nome, email) FROM painel_usuarios WHERE id = $2) AS autor`,
+    [leadId, usuario.id, limpo],
+  );
+  await registrarAuditoria(
+    { usuarioId: usuario.id, acao: "anotar_lead", leadId, detalhe: { anotacao_id: rows[0].id, tamanho: limpo.length } },
+    db,
+  );
+  return rows[0];
 }
 
 /**

@@ -55,9 +55,10 @@ export async function recriarBanco(urlDono: string): Promise<void> {
   await banco.query(ler("tests/fixtures/teste7d_inscricoes.sql"));
   await banco.query(ler("db/migrations/20261028_painel_base.sql"));
   await banco.query(ler("db/migrations/20261103_painel_pipeline.sql"));
-  // Os dois arquivos de GRANT, na ordem em que vão para o Neon (o segundo repete o fim do primeiro).
+  // Os arquivos de GRANT, na ordem em que vão para o Neon (os outros repetem o fim do primeiro).
   await banco.query(ler("db/grants/painel_app.sql"));
   await banco.query(ler("db/grants/painel_app_pipeline.sql"));
+  await banco.query(ler("db/grants/painel_app_lead_manual.sql"));
   await banco.end();
 }
 

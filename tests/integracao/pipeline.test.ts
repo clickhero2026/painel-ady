@@ -21,8 +21,8 @@ beforeEach(async () => {
   await semear(sqlDono);
 });
 
-describe("GRANTs do pipeline", () => {
-  it("db/grants/painel_app.sql contém exatamente os GRANTs de painel_app_pipeline.sql", () => {
+describe("GRANTs repetidos em painel_app.sql", () => {
+  it.each(["db/grants/painel_app_pipeline.sql", "db/grants/painel_app_lead_manual.sql"])("db/grants/painel_app.sql contém exatamente os GRANTs de %s", (parcial) => {
     const comandos = (arquivo: string) =>
       readFileSync(arquivo, "utf8")
         .split("\n")
@@ -32,7 +32,9 @@ describe("GRANTs do pipeline", () => {
         .map((c) => c.replace(/\s+/g, " ").trim())
         .filter(Boolean);
     const geral = comandos("db/grants/painel_app.sql");
-    for (const c of comandos("db/grants/painel_app_pipeline.sql")) expect(geral).toContain(c);
+    const doParcial = comandos(parcial);
+    expect(doParcial.length).toBeGreaterThan(0);
+    for (const c of doParcial) expect(geral).toContain(c);
   });
 
   it("histórico e anotações: o painel_app não faz UPDATE nem DELETE", async () => {

@@ -12,6 +12,7 @@ import { Parametros } from "./sql";
  * mesmas definições do funil (funil.ts): cadastro no período (coorte, fuso
  * de São Paulo), ativação completa = etapa2_concluida_em, agendou =
  * agendado_em. Não usa reunião realizada (nenhum fluxo grava hoje).
+ * Sem os leads cadastrados à mão no painel (LEAD_MANUAL, em funil.ts).
  *
  * Só agregados. O texto livre (cidade e negócio) é lido do banco para
  * contar termos, mas só sai daqui o termo normalizado que se repete
@@ -206,7 +207,7 @@ async function contagens(f: FiltrosFunil): Promise<Contagem[]> {
             (count(*) FILTER (WHERE ${ATIVOU} AND NOT (${AGENDOU})))::int AS nao_agendou
        FROM teste7d_inscricoes i
       CROSS JOIN LATERAL (VALUES ${valores}) AS r(campo, valor)
-      WHERE ${condicoes(f, p)}
+      WHERE ${condicoes(f, p, "excluir")}
       GROUP BY 1, 2`,
     p.valores,
   );
@@ -220,7 +221,7 @@ async function textosLivres(f: FiltrosFunil): Promise<{ campo: string; texto: st
     `SELECT r.campo, r.texto, count(*)::int AS n
        FROM teste7d_inscricoes i
       CROSS JOIN LATERAL (VALUES ${valores}) AS r(campo, texto)
-      WHERE ${condicoes(f, p)} AND r.texto IS NOT NULL
+      WHERE ${condicoes(f, p, "excluir")} AND r.texto IS NOT NULL
       GROUP BY 1, 2`,
     p.valores,
   );

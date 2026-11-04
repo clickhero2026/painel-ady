@@ -27,8 +27,14 @@ async function linkMaisNovo(email: string, depoisDe: number): Promise<string | n
   const arquivos = (await readdir(PASTA_EMAILS).catch(() => [])).sort().reverse();
   for (const arquivo of arquivos) {
     if (Number(arquivo.split("-")[0]) < depoisDe) continue;
-    const dados = JSON.parse(await readFile(path.join(PASTA_EMAILS, arquivo), "utf8"));
-    if (dados.para === email) return dados.texto.match(/https?:\/\/\S+/)[0];
+    // O servidor pode estar no meio da gravação: arquivo incompleto fica para a próxima volta do poll.
+    let dados: { para: string; texto: string };
+    try {
+      dados = JSON.parse(await readFile(path.join(PASTA_EMAILS, arquivo), "utf8"));
+    } catch {
+      continue;
+    }
+    if (dados.para === email) return dados.texto.match(/https?:\/\/\S+/)![0];
   }
   return null;
 }

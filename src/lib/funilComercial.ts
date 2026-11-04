@@ -20,7 +20,10 @@ import { Parametros } from "./sql";
  * Funil comercial (bloco da tela Funil e GET /api/funil/comercial). Mesmos
  * cortes e mesma coorte do funil: `condicoes` de funil.ts (período pela
  * data do CADASTRO, criativo, campanha, origem, mídia, versão; sem os
- * cadastros mesclados em outro). Só agregados; nenhum dado pessoal sai daqui.
+ * cadastros mesclados em outro), mas COM os leads cadastrados à mão no
+ * painel (`condicoes(..., "incluir")`): eles são trabalho comercial, só não
+ * entram nos indicadores de marketing. Por isso o total daqui pode passar
+ * dos cadastros do funil. Só agregados; nenhum dado pessoal sai daqui.
  *
  * Definições:
  *   - Etapa atual: painel_lead_etapa; sem registro = "não contatado".
@@ -143,7 +146,7 @@ async function grupos(f: FiltrosFunil): Promise<Grupo[]> {
          LEFT JOIN painel_lead_etapa e ON e.lead_id = i.id
          LEFT JOIN painel_lead_responsavel r ON r.lead_id = i.id
          LEFT JOIN painel_usuarios ru ON ru.id = r.usuario_id
-        WHERE ${condicoes(f, p)}
+        WHERE ${condicoes(f, p, "incluir")}
      )
      SELECT etapa, nivel, motivo, perdido_de, source, medium, campaign, status, responsavel, count(*)::int AS n
        FROM base
@@ -156,7 +159,7 @@ async function grupos(f: FiltrosFunil): Promise<Grupo[]> {
 async function tempos(f: FiltrosFunil): Promise<{ etapa: EtapaComercial; n: number; mediana: number }[]> {
   const p = new Parametros();
   const { rows } = await pool().query<{ etapa: EtapaComercial; n: number; mediana: number }>(
-    `WITH escopo AS (SELECT i.id, i.created_at FROM teste7d_inscricoes i WHERE ${condicoes(f, p)}),
+    `WITH escopo AS (SELECT i.id, i.created_at FROM teste7d_inscricoes i WHERE ${condicoes(f, p, "incluir")}),
      periodos AS (
        SELECT h.etapa_de AS etapa,
               extract(epoch FROM h.criado_em - coalesce(
