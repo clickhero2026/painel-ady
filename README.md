@@ -2,11 +2,12 @@
 
 Painel interno do ady (painel.useady.com.br). App separado do site público
 (clickhero2026/site-ady): lê os cadastros do teste grátis de 7 dias
-(`teste7d_inscricoes`, no Neon) e tem login, papéis, gestão de usuários e
+(`teste7d_inscricoes`, no Postgres próprio; o Neon fica como rollback) e tem login, papéis, gestão de usuários e
 auditoria.
 
 **Stack:** Next.js 16 (App Router, `src/proxy.ts`), TypeScript, Tailwind 4,
-Better Auth (Google + link mágico), `@neondatabase/serverless`, SendGrid
+Better Auth (Google + link mágico), `pg` (ou `@neondatabase/serverless`,
+conforme `DATABASE_DRIVER`), SendGrid
 (API v3 via fetch), Recharts (gráficos do funil), Vitest e Playwright.
 
 ## Quem entra
@@ -61,6 +62,23 @@ npm run dev
 
 Sem SendGrid, o link mágico aparece no console (ou em `PAINEL_DEV_EMAIL_DIR`).
 
+## Banco
+
+`DATABASE_DRIVER` escolhe o driver (`src/lib/db.ts`):
+
+- `pg`: Postgres por TCP. É o de produção (Postgres 18 no Easypanel) e o
+  de dev/testes. Pool pequeno para serverless (máx. 3 conexões, ociosa
+  fecha em 5 s, 5 s para conectar, 15 s por instrução) e
+  `attachDatabasePool` na Vercel.
+- `neon` (padrão, se vazia): driver do Neon. Só para rollback: trocar a
+  variável e a `DATABASE_URL` de volta e fazer novo deploy.
+
+SSL no `pg`: só pelo `DATABASE_CA_CERT` (PEM do certificado do servidor),
+sempre verificado. `sslmode` e afins na URL são ignorados de propósito
+(no `pg`, eles anulariam o CA). Na Vercel, `pg` sem `DATABASE_CA_CERT` não
+sobe. O certificado do servidor é emitido para o IP, então a `DATABASE_URL`
+precisa usar o IP como host (um nome não bateria com o certificado).
+
 ## Testes
 
 Sempre contra o Postgres local (os testes recusam qualquer host que não
@@ -82,4 +100,5 @@ token é trocada; o resto do fluxo roda de verdade).
 ## Migrações
 
 Em `db/migrations/`, e as permissões do `painel_app` em `db/grants/`. Não
-rodam sozinhas: colar no SQL Editor do Neon.
+rodam sozinhas: o dono do banco roda à mão (os comentários dos arquivos ainda
+falam do SQL Editor do Neon, da época em que o banco estava lá).

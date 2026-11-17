@@ -1,10 +1,10 @@
 # Só desenvolvimento e testes: Postgres local. Nunca usado em produção
-# (lá é o Neon). Subir com `npm run db:up`; o .env.local de dev aponta pra
+# (lá é o Postgres 18 do Easypanel; mesma versão maior daqui). Subir com `npm run db:up`; o .env.local de dev aponta pra
 #   postgres://postgres:postgres@localhost:54329/painel
 # com DATABASE_DRIVER=pg (ver src/lib/db.ts).
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres

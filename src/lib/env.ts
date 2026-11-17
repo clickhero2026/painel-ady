@@ -18,6 +18,26 @@ export function databaseUrl(): string {
   return obrigatoria("DATABASE_URL");
 }
 
+export type DriverBanco = "neon" | "pg";
+
+/** `DATABASE_DRIVER`: `neon` (padrão, também se vazia) ou `pg`. Outro valor é erro de configuração. */
+export function databaseDriver(): DriverBanco {
+  const valor = process.env.DATABASE_DRIVER?.trim() || "neon";
+  if (valor !== "neon" && valor !== "pg") {
+    throw new Error(`DATABASE_DRIVER inválida: use "neon" ou "pg".`);
+  }
+  return valor;
+}
+
+/**
+ * PEM do certificado do servidor Postgres (`DATABASE_CA_CERT`), ou null.
+ * Aceita a quebra de linha escrita como `\n` (painéis que só guardam uma linha).
+ */
+export function databaseCaCert(): string | null {
+  const pem = process.env.DATABASE_CA_CERT?.replace(/\\n/g, "\n").trim();
+  return pem || null;
+}
+
 /** Origem pública do painel, sem barra no fim (ex. https://painel.useady.com.br). */
 export function appUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/+$/, "");
