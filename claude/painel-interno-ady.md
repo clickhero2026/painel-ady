@@ -78,7 +78,7 @@ Como o funil aparece nos dados:
 | Projeto | Projeto Vercel **separado** e repositório próprio. A LP ficou junto do site por causa do roteamento por host, mas ferramenta interna não deve compartilhar deploy com o site público. |
 | Banco | Mesmo Neon, com usuário de banco próprio (`painel_app`), leitura restrita por colunas e escrita só nas tabelas do painel e em duas colunas da tabela de cadastros (`status`, `realizada_em`). |
 | Login | Google. A equipe usa Google Workspace, **exceto 2 pessoas (que serão admins)**. Por isso: lista de usuários autorizados por **e-mail** (não por domínio) e, como segunda via, **link mágico por e-mail via SendGrid** (a empresa já tem conta). Quem não está na lista, ou está desativado, não entra por nenhum dos dois métodos. |
-| Papéis | `admin`, `suporte`, `vendas`, `leitura` |
+| Papéis | `super_admin`, `admin`, `suporte`, `vendas`, `leitura`. O `super_admin` (só rafael@clickhero.com.br, definido por migração) faz tudo o que o admin faz e é o único que apaga leads. Ver seção 13.3. |
 | Visibilidade | **Vendedor vê só os leads dos quais é responsável.** Admin vê todos. Suporte vê todos. Leitura vê só números agregados, sem dados pessoais. |
 | Escopo | Pipeline comercial simples (etapa comercial, anotações internas e mescla de duplicados), responsável por lead e marcação de reunião realizada ou não. Sem integração com o Bitrix24. Ver seção 13, decisões de 03/11/2026. |
 | Prioridade | Fase 1 com fichas dos leads e funil, nessa ordem. |
@@ -163,23 +163,26 @@ Como o funil aparece nos dados:
 
 ## 7. Papéis e permissões
 
-| Recurso | admin | suporte | vendas | leitura |
-|---|---|---|---|---|
-| Lista e ficha de leads | todos | todos | só os seus | não |
-| Dados pessoais (nome, WhatsApp, e-mail) | sim | sim | só dos seus | não |
-| Link de ativação | sim | sim | só dos seus | não |
-| Marcar realizada ou não compareceu | sim | sim | não | não |
-| Atribuir responsável | sim | não | não | não |
-| Ver etapa comercial e histórico (ficha e pipeline) | todos | todos | só os seus | não |
-| Mudar etapa comercial | todos | não (só vê) | só os seus | não |
-| Anotações internas (ler e escrever; sem editar nem apagar) | todos | todos | só os seus | não |
-| Mesclar e desfazer mescla; "Possíveis duplicados" | sim | não | não | não |
-| Cadastrar lead à mão ("Novo lead") | sim (escolhe o responsável ou nenhum) | não | sim (fica responsável) | não |
-| Tela Pipeline (quadro e lista) | todos, com filtro por responsável | todos, só leitura | só os seus (sem os sem responsável) | não |
-| Funil comercial (agregados) | sim, com corte por responsável | sim, com corte por responsável | sim, sem corte por responsável | sim, sem corte por responsável e com células de 1 a 4 ocultas |
-| Indicadores e perfil agregados | sim | sim | sim (padrão sugerido) | sim, sem dados pessoais |
-| Usuários e auditoria | sim | não | não | não |
-| Exportar CSV | sim | não | não | não |
+| Recurso | super_admin | admin | suporte | vendas | leitura |
+|---|---|---|---|---|---|
+| Lista e ficha de leads | todos | todos | todos | só os seus | não |
+| Dados pessoais (nome, WhatsApp, e-mail) | sim | sim | sim | só dos seus | não |
+| Link de ativação | sim | sim | sim | só dos seus | não |
+| Marcar realizada ou não compareceu | sim | sim | sim | não | não |
+| Atribuir responsável | sim | sim | não | não | não |
+| Ver etapa comercial e histórico (ficha e pipeline) | todos | todos | todos | só os seus | não |
+| Mudar etapa comercial | todos | todos | não (só vê) | só os seus | não |
+| Anotações internas (ler e escrever; sem editar nem apagar) | todos | todos | todos | só os seus | não |
+| Mesclar e desfazer mescla; "Possíveis duplicados" | sim | sim | não | não | não |
+| Cadastrar lead à mão ("Novo lead") | sim (escolhe o responsável ou nenhum) | sim (escolhe o responsável ou nenhum) | não | sim (fica responsável) | não |
+| Tela Pipeline (quadro e lista) | todos, com filtro por responsável | todos, com filtro por responsável | todos, só leitura | só os seus (sem os sem responsável) | não |
+| Funil comercial (agregados) | sim, com corte por responsável | sim, com corte por responsável | sim, com corte por responsável | sim, sem corte por responsável | sim, sem corte por responsável e com células de 1 a 4 ocultas |
+| Indicadores e perfil agregados | sim | sim | sim | sim (padrão sugerido) | sim, sem dados pessoais |
+| Usuários e auditoria | sim (não pode ser alterado por ninguém pelo painel) | sim (não altera o super admin) | não | não | não |
+| Exportar CSV | sim | sim | não | não | não |
+| **Apagar lead** (de vez, um por vez, com confirmação) | **sim** | não | não | não | não |
+
+O `super_admin` herda 100% das permissões do admin: no código, toda checagem de admin passa por `ehAdmin(papel)` (vale para os dois) e as listas de `ACESSO_ROTAS` que aceitam "admin" aceitam o super admin por `temPapel` (`src/lib/papeis.ts`). Só `apagarLead` exige `ehSuperAdmin`. Pode ser responsável por lead, como o admin.
 
 A restrição por papel e por responsável deve ser aplicada **no acesso a dados do servidor**, em uma função única (por exemplo `leadsVisiveis(usuario)`), e não só escondendo itens na interface. Teste obrigatório: um vendedor não consegue ler a ficha de um lead alheio nem pela URL direta nem pela API.
 
@@ -467,6 +470,18 @@ Integração com o Bitrix24 (ler ou escrever), cobrança, integração de pagame
 10. **Pipeline:** quadro e lista; vendedor vê só os seus; Fechado e Perdido mostram os últimos 30 dias por padrão; até 50 cartões por coluna com "ver mais".
 11. **Funil comercial:** agregados para todos os papéis, com a mesma coorte e os mesmos cortes do funil; corte por responsável só para admin e suporte; para leitura, células de 1 a 4 ocultas no servidor, com proteção contra subtração igual à do Perfil.
 12. Tabelas novas: `painel_lead_etapa`, `painel_lead_etapa_historico` (só INSERT), `painel_lead_anotacao` (só INSERT), `painel_lead_mescla`. Migração `db/migrations/20261103_painel_pipeline.sql` e GRANTs em `db/grants/painel_app_pipeline.sql` (repetidos no fim de `db/grants/painel_app.sql`).
+
+## 13.3 Decisões fechadas em 18/11/2026 (super admin e apagar lead)
+
+1. **Papel `super_admin`**, só para rafael@clickhero.com.br. Faz tudo o que o admin faz e é o único que apaga leads. Os outros usuários não mudam em nada.
+2. **Quem define é a migração** `db/migrations/20261118_super_admin.sql` (UPSERT pelo e-mail, sem diferenciar maiúsculas; não mexe em nome nem histórico). Sem variável de ambiente. No máximo um super admin (índice único parcial).
+3. **Ninguém mexe nele pelo painel:** não é concedido, retirado, rebaixado, desativado nem editado pela tela de Usuários, pelas ações do servidor nem pela API, nem por admin, nem por ele mesmo. A tela mostra o selo "Super admin" sem ações; o seletor de papel não oferece "Super admin". No banco, um trigger barra o `painel_app` (papel, `ativo`, e-mail, DELETE, INSERT e promoção de outra pessoa). O dono do banco pode mudar à mão.
+4. **Último admin ativo:** admin e super admin contam juntos (código em `src/lib/usuarios.ts` e trigger no banco). Na prática, com o super admin ativo, qualquer admin comum pode ser rebaixado ou desativado.
+5. **Apagar lead:** botão "Apagar lead" na "Zona de perigo" da ficha, só visível ao super admin. Modal mostra nome e e-mail e só libera "Apagar de vez" depois de digitar o e-mail do lead; o servidor confere o e-mail de novo. Regra única em `src/lib/apagarLead.ts` (`DELETE /api/leads/:id`): papel relido do banco dentro da transação; qualquer outro papel recebe 403 antes de qualquer leitura. Sem apagar em lote.
+6. **O que sai junto:** responsável, etapa, histórico de etapas, anotações e mescla, pelo `ON DELETE CASCADE` (o `painel_app` só ganha `DELETE` em `teste7d_inscricoes`). A função confere na mesma transação que nada ficou apontando para o lead; qualquer falha desfaz tudo.
+7. **Mescla:** cadastro mesclado em outro (duplicado) não é apagado (422; desfazer a mescla antes). Principal com cadastros mesclados nele também não (422; a ficha avisa e não mostra o botão): apagá-lo soltaria os duplicados, que voltariam às listas e contagens sem ninguém pedir.
+8. **Auditoria `apagar_lead`** com `usuario_id`, `lead_id` e só `status`, `utm_content`, `utm_campaign`, `lp_variant`, `created_at`. Sem nome, e-mail, WhatsApp, token nem respostas. Os registros antigos de auditoria do lead ficam (só ids; `lead_id` lá não é chave estrangeira).
+9. Depois de apagar: volta para /leads com "Lead apagado.". Funil, perfil, origem, pipeline e contadores leem o banco a cada requisição (sem cache), então refletem na hora. O link de retomada do lead apagado cai no "link inválido" do site, sem erro.
 
 ## 13.2 Decisões fechadas em 04/11/2026 (cadastro manual de lead)
 

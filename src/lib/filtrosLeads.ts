@@ -1,7 +1,7 @@
 import * as z from "zod";
 import { ETAPAS_COMERCIAIS, type EtapaComercial } from "@/config/pipeline";
 import { ETAPAS } from "./etapas";
-import type { Papel } from "./papeis";
+import { ehAdmin, type Papel } from "./papeis";
 
 /**
  * Filtros, visão, ordenação e página da lista de leads, lidos da URL. Valor
@@ -21,8 +21,8 @@ export const ROTULO_VISAO: Record<Visao, string> = {
 
 /** Quem vê cada visão restrita (as demais: todos que veem leads). */
 export function podeVerVisao(visao: Visao, papel: Papel): boolean {
-  if (visao === "sem_responsavel") return papel === "admin";
-  if (visao === "para_fechar") return papel === "admin" || papel === "suporte";
+  if (visao === "sem_responsavel") return ehAdmin(papel);
+  if (visao === "para_fechar") return ehAdmin(papel) || papel === "suporte";
   return true;
 }
 
@@ -79,7 +79,7 @@ function valor(entrada: Entrada, chave: string): string | undefined {
 
 /** Visões e filtros que dependem do papel ("Sem responsável" e o filtro de responsável). */
 export function podeFiltrarResponsavel(papel: Papel): boolean {
-  return papel === "admin" || papel === "suporte";
+  return ehAdmin(papel) || papel === "suporte";
 }
 
 export function lerFiltros(entrada: Entrada, papel: Papel): FiltrosLeads {

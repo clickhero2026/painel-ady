@@ -2,20 +2,21 @@
 
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
-import { PAPEIS } from "@/lib/papeis";
 import { exigirUsuario } from "@/lib/sessao";
 import { alterarPapel, criarUsuario, definirAtivo, ErroUsuarios } from "@/lib/usuarios";
-import { ACESSO_ROTAS } from "@/lib/papeis";
+import { ACESSO_ROTAS, PAPEIS_ATRIBUIVEIS } from "@/lib/papeis";
 
 /**
  * Ações da tela de usuários. Cada uma confere de novo, no servidor, que
  * quem chama é admin ativo — a tela escondida não protege nada sozinha.
+ * O papel super_admin não é aceito aqui (nem conceder, nem tirar): ver
+ * usuarios.ts.
  */
 
 export type Resultado = { ok: boolean; mensagem: string } | null;
 
 const id = z.uuid();
-const papel = z.enum(PAPEIS, { error: "Escolha um papel." });
+const papel = z.enum(PAPEIS_ATRIBUIVEIS, { error: "Escolha um papel." });
 
 const novoUsuario = z.object({
   email: z.email({ error: "Digite um e-mail válido." }).max(254),

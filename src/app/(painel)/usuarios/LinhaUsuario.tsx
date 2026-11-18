@@ -3,7 +3,7 @@
 import { useActionState, useId } from "react";
 import { Aviso } from "@/components/ui/Aviso";
 import { botao, campo } from "@/components/ui/estilos";
-import { PAPEIS, ROTULO_PAPEL, type Papel } from "@/lib/papeis";
+import { ehSuperAdmin, PAPEIS_ATRIBUIVEIS, ROTULO_PAPEL, type Papel } from "@/lib/papeis";
 import { mudarAtivo, mudarPapel } from "./acoes";
 
 interface Props {
@@ -23,6 +23,8 @@ export function LinhaUsuario({ usuario, ehVoce }: Props) {
   const idPapel = useId();
   const resultado = resAtivo ?? resPapel;
   const nome = usuario.nome || usuario.email;
+  // Super admin: só o selo, sem nenhuma ação (o servidor e o banco também barram).
+  const intocavel = ehSuperAdmin(usuario.papel);
 
   return (
     <li className={`px-4 py-4 sm:px-5 ${usuario.ativo ? "" : "bg-superficie"}`}>
@@ -30,6 +32,9 @@ export function LinhaUsuario({ usuario, ehVoce }: Props) {
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 font-medium">
             <span className="wrap-anywhere">{nome}</span>
+            {intocavel && (
+              <span className="rounded-full bg-petroleo-escuro px-2 py-0.5 text-xs font-semibold text-white">Super admin</span>
+            )}
             {ehVoce && <span className="rounded-full bg-petroleo-suave px-2 py-0.5 text-xs text-petroleo-escuro">você</span>}
             {!usuario.ativo && (
               <span className="rounded-full border border-borda-campo px-2 py-0.5 text-xs text-texto-suave">desativado</span>
@@ -41,6 +46,9 @@ export function LinhaUsuario({ usuario, ehVoce }: Props) {
           </p>
         </div>
 
+        {intocavel ? (
+          <p className="text-sm text-texto-suave md:max-w-56 md:text-right">Papel definido no banco; não pode ser alterado pelo painel.</p>
+        ) : (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <form action={enviarPapel} className="flex items-center gap-2">
             <input type="hidden" name="id" value={usuario.id} />
@@ -48,7 +56,7 @@ export function LinhaUsuario({ usuario, ehVoce }: Props) {
               Papel de {nome}
             </label>
             <select id={idPapel} name="papel" defaultValue={usuario.papel} className={`${campo} w-36`}>
-              {PAPEIS.map((p) => (
+              {PAPEIS_ATRIBUIVEIS.map((p) => (
                 <option key={p} value={p}>
                   {ROTULO_PAPEL[p]}
                 </option>
@@ -73,6 +81,7 @@ export function LinhaUsuario({ usuario, ehVoce }: Props) {
             </form>
           )}
         </div>
+        )}
       </div>
       {resultado && (
         <div className="mt-3">

@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef } from "react";
 import { Aviso } from "@/components/ui/Aviso";
 import { botao, campo, rotulo } from "@/components/ui/estilos";
-import { PAPEIS, ROTULO_PAPEL } from "@/lib/papeis";
+import { PAPEIS_ATRIBUIVEIS, ROTULO_PAPEL } from "@/lib/papeis";
 import { adicionarUsuario } from "./acoes";
 
 export function FormularioNovoUsuario() {
@@ -34,7 +34,7 @@ export function FormularioNovoUsuario() {
             Papel
           </label>
           <select id="novo-papel" name="papel" required defaultValue="leitura" className={campo}>
-            {PAPEIS.map((p) => (
+            {PAPEIS_ATRIBUIVEIS.map((p) => (
               <option key={p} value={p}>
                 {ROTULO_PAPEL[p]}
               </option>

@@ -27,7 +27,7 @@ import {
   UUID,
   type QuemConsulta,
 } from "./leads";
-import type { Papel } from "./papeis";
+import { ehAdmin, type Papel } from "./papeis";
 import { Parametros } from "./sql";
 
 /**
@@ -44,7 +44,7 @@ import { Parametros } from "./sql";
 
 /** Mudar etapa: admin em qualquer lead; vendas só nos seus; suporte só vê. */
 export function podeMudarEtapa(papel: Papel): boolean {
-  return papel === "admin" || papel === "vendas";
+  return ehAdmin(papel) || papel === "vendas";
 }
 
 // ── Mudança de etapa ──

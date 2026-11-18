@@ -10,6 +10,8 @@ export const botao = {
   primario: `${botaoBase} bg-petroleo-forte text-white hover:bg-petroleo-escuro`,
   secundario: `${botaoBase} border border-borda-campo bg-fundo text-texto hover:bg-superficie`,
   perigo: `${botaoBase} border border-erro bg-fundo text-erro hover:bg-erro-suave`,
+  /** Confirmação final de uma ação destrutiva e irreversível. */
+  perigoFinal: `${botaoBase} border border-erro bg-erro text-white hover:opacity-90`,
 } as const;
 
 export const campo =

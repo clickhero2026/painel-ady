@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Mail, MessageCircle } from "lucide-react";
+import { ApagarLead } from "@/components/leads/ApagarLead";
 import { AtribuirResponsavel } from "@/components/leads/AtribuirResponsavel";
 import { CopiarLinkAtivacao } from "@/components/leads/CopiarLinkAtivacao";
 import { MarcarReuniao } from "@/components/leads/MarcarReuniao";
@@ -17,6 +18,7 @@ import { botao } from "@/components/ui/estilos";
 import { MENSAGEM_WHATSAPP, MENSAGEM_WHATSAPP_MANUAL, VALIDADE_LINK_ATIVACAO_DIAS } from "@/config/contato";
 import { ETAPA_PERDIDO, posicaoDaEtapa, rotuloEtapaComercial, rotuloMotivo } from "@/config/pipeline";
 import { anotacoesDe, podeAnotar, type Anotacao } from "@/lib/anotacoes";
+import { podeApagarLead } from "@/lib/apagarLead";
 import { rotuloEtapa } from "@/lib/etapas";
 import {
   diasDesde,
@@ -317,6 +319,28 @@ export default async function PaginaFicha({ params, searchParams }: PageProps<"/
           {mesclador && (
             <div className="mt-6 border-t border-borda pt-5">
               <MesclarLead leadId={lead.id} sugestoes={sugestoes.map(paraCliente)} />
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Só o super admin vê (e a API só aceita dele: src/lib/apagarLead.ts). */}
+      {podeApagarLead(usuario.papel) && (
+        <section aria-labelledby="titulo-zona-perigo" className="mt-10 rounded-2xl border border-erro/40 bg-fundo p-5 sm:p-6">
+          <h2 id="titulo-zona-perigo" className="font-semibold text-erro">
+            Zona de perigo
+          </h2>
+          {mesclados.length > 0 ? (
+            <p className="mt-1 text-sm text-texto-suave">
+              Este lead tem cadastros mesclados nele. Para apagá-lo, desfaça as mesclas antes (bloco “Cadastros
+              mesclados”).
+            </p>
+          ) : (
+            <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-texto-suave">
+                Apaga o lead de vez, com tudo o que está ligado a ele no painel. Não dá para desfazer.
+              </p>
+              <ApagarLead leadId={lead.id} nome={lead.nome} email={lead.email} />
             </div>
           )}
         </section>

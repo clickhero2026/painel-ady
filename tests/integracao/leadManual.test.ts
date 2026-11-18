@@ -310,7 +310,8 @@ describe("banco e limite", () => {
     await expect(
       db().query("INSERT INTO teste7d_inscricoes (nome, email, whatsapp, token_retomada) VALUES ('A B', 'x@y.com', '5585999999999', 'abc')"),
     ).rejects.toThrow(/permission denied/);
-    await expect(db().query("DELETE FROM teste7d_inscricoes")).rejects.toThrow(/permission denied/);
+    // DELETE em teste7d_inscricoes existe desde 20261118_super_admin.sql (apagar lead, só super
+    // admin, regra em src/lib/apagarLead.ts; ver tests/integracao/apagarLead.test.ts).
     await expect(db().query("UPDATE teste7d_inscricoes SET utm_source = 'x'")).rejects.toThrow(/permission denied/);
   });
 

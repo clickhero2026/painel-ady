@@ -1,6 +1,7 @@
 import { registrarAuditoria } from "./auditoria";
 import { pool, transacao, type Consulta } from "./db";
 import { NAO_MESCLADO } from "./escopo";
+import { SQL_PAPEIS_RESPONSAVEL, type PapelResponsavel } from "./papeis";
 
 /**
  * Atribuição de responsável por lead (só admin; quem chama já checou o
@@ -30,14 +31,14 @@ export const TRAVA_ATRIBUICAO = 7_310_001;
 export interface Responsavel {
   id: string;
   nome: string;
-  papel: "admin" | "vendas";
+  papel: PapelResponsavel;
 }
 
 /** Quem pode ser responsável: ativos com papel vendas ou admin. */
 export async function responsaveisPossiveis(): Promise<Responsavel[]> {
   const { rows } = await pool().query<Responsavel>(
     `SELECT id, coalesce(nome, email) AS nome, papel FROM painel_usuarios
-      WHERE ativo AND papel IN ('admin', 'vendas')
+      WHERE ativo AND papel IN ${SQL_PAPEIS_RESPONSAVEL}
       ORDER BY lower(coalesce(nome, email))`,
   );
   return rows;
@@ -61,7 +62,7 @@ export async function responsavelValido(db: Consulta, usuarioId: string): Promis
   if (!UUID.test(usuarioId)) throw new ErroAtribuicao("Pedido inválido.");
   const { rows } = await db.query<{ id: string; nome: string }>(
     `SELECT id, coalesce(nome, email) AS nome FROM painel_usuarios
-      WHERE id = $1 AND ativo AND papel IN ('admin', 'vendas')
+      WHERE id = $1 AND ativo AND papel IN ${SQL_PAPEIS_RESPONSAVEL}
       FOR SHARE`,
     [usuarioId],
   );

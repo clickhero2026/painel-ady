@@ -4,7 +4,7 @@ import { registrarAuditoria } from "./auditoria";
 import { pool, transacao } from "./db";
 import { ORIGEM_MANUAL } from "./funil";
 import { leadsVisiveis, ORIGEM, UUID, type QuemConsulta } from "./leads";
-import type { Papel } from "./papeis";
+import { ehAdmin, type Papel } from "./papeis";
 import { Parametros } from "./sql";
 import { validarDadosDoLead, type ErrosDoLead } from "./validacaoLead";
 
@@ -34,7 +34,7 @@ import { validarDadosDoLead, type ErrosDoLead } from "./validacaoLead";
  */
 
 export function podeCriarLead(papel: Papel): boolean {
-  return papel === "admin" || papel === "vendas";
+  return ehAdmin(papel) || papel === "vendas";
 }
 
 export const MENSAGEM_EMAIL_EXISTENTE = "Já existe um cadastro com este e-mail.";

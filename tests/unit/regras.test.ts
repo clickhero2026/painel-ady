@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { ACESSO_ROTAS, navegacaoDoPapel, PAPEIS, podeAcessar } from "@/lib/papeis";
+import {
+  ACESSO_ROTAS,
+  ehAdmin,
+  ehSuperAdmin,
+  navegacaoDoPapel,
+  PAPEIS,
+  PAPEIS_ATRIBUIVEIS,
+  podeAcessar,
+  temPapel,
+} from "@/lib/papeis";
 import { caminhoInternoSeguro, montarCsp } from "@/lib/seguranca";
 import { passouDoMaximo } from "@/lib/sessao";
 
@@ -11,23 +20,25 @@ describe("papéis", () => {
     expect(navegacaoDoPapel("suporte").map((i) => i.href)).toEqual(["/", "/leads", "/pipeline", "/leads?visao=para_fechar", "/funil", "/perfil"]);
     expect(navegacaoDoPapel("vendas").map((i) => i.href)).toEqual(["/", "/leads", "/pipeline", "/funil", "/perfil"]);
     expect(navegacaoDoPapel("leitura").map((i) => i.href)).toEqual(["/", "/funil", "/perfil"]);
+    // Super admin: exatamente a barra do admin.
+    expect(navegacaoDoPapel("super_admin")).toEqual(navegacaoDoPapel("admin"));
   });
 
   it("funil: todos veem, só admin exporta", () => {
     for (const papel of PAPEIS) expect(podeAcessar(papel, "funil")).toBe(true);
-    expect(PAPEIS.filter((p) => podeAcessar(p, "exportarFunil"))).toEqual(["admin"]);
+    expect(PAPEIS.filter((p) => podeAcessar(p, "exportarFunil"))).toEqual(["super_admin", "admin"]);
   });
 
   it("atribuir só admin; marcar reunião admin e suporte", () => {
-    expect(PAPEIS.filter((p) => podeAcessar(p, "atribuir"))).toEqual(["admin"]);
-    expect(PAPEIS.filter((p) => podeAcessar(p, "marcarReuniao"))).toEqual(["admin", "suporte"]);
+    expect(PAPEIS.filter((p) => podeAcessar(p, "atribuir"))).toEqual(["super_admin", "admin"]);
+    expect(PAPEIS.filter((p) => podeAcessar(p, "marcarReuniao"))).toEqual(["super_admin", "admin", "suporte"]);
   });
 
   it("pipeline: admin, suporte e vendas veem; só admin e vendas mudam etapa; anotações para os três; mescla só admin", () => {
-    expect(PAPEIS.filter((p) => podeAcessar(p, "pipeline"))).toEqual(["admin", "suporte", "vendas"]);
-    expect(PAPEIS.filter((p) => podeAcessar(p, "mudarEtapa"))).toEqual(["admin", "vendas"]);
-    expect(PAPEIS.filter((p) => podeAcessar(p, "anotar"))).toEqual(["admin", "suporte", "vendas"]);
-    expect(PAPEIS.filter((p) => podeAcessar(p, "mesclar"))).toEqual(["admin"]);
+    expect(PAPEIS.filter((p) => podeAcessar(p, "pipeline"))).toEqual(["super_admin", "admin", "suporte", "vendas"]);
+    expect(PAPEIS.filter((p) => podeAcessar(p, "mudarEtapa"))).toEqual(["super_admin", "admin", "vendas"]);
+    expect(PAPEIS.filter((p) => podeAcessar(p, "anotar"))).toEqual(["super_admin", "admin", "suporte", "vendas"]);
+    expect(PAPEIS.filter((p) => podeAcessar(p, "mesclar"))).toEqual(["super_admin", "admin"]);
   });
 
   it("perfil: todos veem (sem exportação)", () => {
@@ -38,6 +49,48 @@ describe("papéis", () => {
     for (const papel of PAPEIS) expect(podeAcessar(papel, "inicio")).toBe(true);
     expect(ACESSO_ROTAS.usuarios).toEqual(["admin"]);
     expect(podeAcessar("suporte", "usuarios")).toBe(false);
+  });
+});
+
+describe("super admin", () => {
+  it("herda TODAS as áreas do admin, sem exceção", () => {
+    for (const area of Object.keys(ACESSO_ROTAS) as (keyof typeof ACESSO_ROTAS)[]) {
+      if (podeAcessar("admin", area)) expect(podeAcessar("super_admin", area), area).toBe(true);
+    }
+  });
+
+  it("apagar lead: só o super admin (admin comum não)", () => {
+    expect(PAPEIS.filter((p) => podeAcessar(p, "apagarLead"))).toEqual(["super_admin"]);
+    expect(temPapel("admin", ["super_admin"])).toBe(false);
+  });
+
+  it("os outros papéis não mudaram: cada área continua com a mesma lista de antes, fora o super admin", () => {
+    const antes: Record<string, string[]> = {
+      inicio: ["admin", "suporte", "vendas", "leitura"],
+      leads: ["admin", "suporte", "vendas"],
+      funil: ["admin", "suporte", "vendas", "leitura"],
+      exportarFunil: ["admin"],
+      exportarOrigem: ["admin"],
+      perfil: ["admin", "suporte", "vendas", "leitura"],
+      usuarios: ["admin"],
+      atribuir: ["admin"],
+      marcarReuniao: ["admin", "suporte"],
+      pipeline: ["admin", "suporte", "vendas"],
+      mudarEtapa: ["admin", "vendas"],
+      anotar: ["admin", "suporte", "vendas"],
+      mesclar: ["admin"],
+      criarLead: ["admin", "vendas"],
+      apagarLead: [],
+    };
+    for (const [area, papeis] of Object.entries(antes)) {
+      expect(PAPEIS_ATRIBUIVEIS.filter((p) => podeAcessar(p, area as keyof typeof ACESSO_ROTAS)), area).toEqual(papeis);
+    }
+  });
+
+  it("helpers: ehAdmin vale para admin e super admin; ehSuperAdmin só para super admin; a tela não oferece super_admin", () => {
+    expect(PAPEIS.filter(ehAdmin)).toEqual(["super_admin", "admin"]);
+    expect(PAPEIS.filter(ehSuperAdmin)).toEqual(["super_admin"]);
+    expect(PAPEIS_ATRIBUIVEIS).not.toContain("super_admin");
   });
 });
 

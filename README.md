@@ -102,3 +102,8 @@ token é trocada; o resto do fluxo roda de verdade).
 Em `db/migrations/`, e as permissões do `painel_app` em `db/grants/`. Não
 rodam sozinhas: o dono do banco roda à mão (os comentários dos arquivos ainda
 falam do SQL Editor do Neon, da época em que o banco estava lá).
+
+Ordem num banco novo: `20261028_painel_base.sql`, `20261103_painel_pipeline.sql`,
+os três arquivos de `db/grants/` e, por último, `20261118_super_admin.sql`
+(papel `super_admin`, travas no banco e o `GRANT DELETE` para apagar lead;
+termina com SELECTs de conferência).

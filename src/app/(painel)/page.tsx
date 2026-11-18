@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ACESSO_ROTAS, podeAcessar, ROTULO_PAPEL } from "@/lib/papeis";
+import { ACESSO_ROTAS, ehAdmin, podeAcessar, ROTULO_PAPEL } from "@/lib/papeis";
 import { exigirUsuario } from "@/lib/sessao";
 
 export const metadata: Metadata = { title: "Início" };
@@ -45,7 +45,7 @@ export default async function Inicio() {
             </Link>
           </div>
         </section>
-        {usuario.papel === "admin" && (
+        {ehAdmin(usuario.papel) && (
           <section className="rounded-2xl border border-borda bg-fundo p-6 sm:col-span-2">
             <h2 className="font-semibold">Usuários</h2>
             <p className="mt-2 text-sm text-texto-suave">

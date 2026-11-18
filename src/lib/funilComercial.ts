@@ -12,7 +12,7 @@ import { rotuloEtapa } from "./etapas";
 import { AMOSTRA_MINIMA, type FiltrosFunil } from "./filtrosFunil";
 import { CAMPAIGN, condicoes, mascararOrigem, MEDIUM, MINIMO_LEITURA, SOURCE, taxa } from "./funil";
 import { NOME_RESPONSAVEL } from "./leads";
-import type { Papel } from "./papeis";
+import { ehAdmin, type Papel } from "./papeis";
 import { celulasOcultas, completarOcultas } from "./perfil";
 import { Parametros } from "./sql";
 
@@ -49,7 +49,7 @@ const POS = (expr: string) =>
 const ETAPA = `coalesce(e.etapa, '${ETAPA_INICIAL}')`;
 
 export function podeVerCorteResponsavel(papel: Papel): boolean {
-  return papel === "admin" || papel === "suporte";
+  return ehAdmin(papel) || papel === "suporte";
 }
 
 // ── Tipos do resultado (null = oculto para o papel, ou sem dado) ──
