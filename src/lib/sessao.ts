@@ -4,7 +4,7 @@ import { cache } from "react";
 import { buscarUsuarioPorEmail, type UsuarioPainel } from "./acesso";
 import { auth, SESSAO } from "./auth";
 import { pool } from "./db";
-import type { Papel } from "./papeis";
+import { temPapel, type Papel } from "./papeis";
 
 /**
  * Quem está usando o painel nesta requisição. A sessão diz QUEM é (e-mail);
@@ -52,6 +52,6 @@ export const usuarioAtual = cache(async (): Promise<UsuarioAtual | null> => {
 export async function exigirUsuario(papeis?: readonly Papel[]): Promise<UsuarioAtual> {
   const usuario = await usuarioAtual();
   if (!usuario) redirect("/login");
-  if (papeis && !papeis.includes(usuario.papel)) forbidden();
+  if (papeis && !temPapel(usuario.papel, papeis)) forbidden();
   return usuario;
 }

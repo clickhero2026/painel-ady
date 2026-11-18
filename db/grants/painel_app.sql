@@ -48,3 +48,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON painel_lead_mescla TO painel_app;
 -- db/grants/painel_app_lead_manual.sql: um teste confere que os dois
 -- arquivos não divergem.
 GRANT INSERT (nome, email, whatsapp, utm_source) ON teste7d_inscricoes TO painel_app;
+
+-- Apagar lead (só super admin, regra no código): o GRANT DELETE em
+-- teste7d_inscricoes está em db/migrations/20261118_super_admin.sql (a fonte
+-- de verdade daquela mudança); rodar a migração depois deste arquivo.

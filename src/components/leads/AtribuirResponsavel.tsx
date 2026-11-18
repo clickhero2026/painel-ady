@@ -4,13 +4,13 @@ import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Aviso } from "@/components/ui/Aviso";
 import { botao, campo, rotulo } from "@/components/ui/estilos";
-import { ROTULO_PAPEL } from "@/lib/papeis";
+import { ROTULO_PAPEL, type PapelResponsavel } from "@/lib/papeis";
 import { enviar } from "./enviar";
 
 export interface OpcaoResponsavel {
   id: string;
   nome: string;
-  papel: "admin" | "vendas";
+  papel: PapelResponsavel;
 }
 
 /** Admin: atribui, troca ou remove o responsável do lead (na ficha). */

@@ -32,7 +32,10 @@ const SEM_DADOS = "sem dados";
 
 export default async function PaginaLeads({ searchParams }: PageProps<"/leads">) {
   const usuario = await exigirUsuario(ACESSO_ROTAS.leads);
-  const filtros = lerFiltros(await searchParams, usuario.papel);
+  const parametros = await searchParams;
+  const filtros = lerFiltros(parametros, usuario.papel);
+  // Volta da ficha depois de apagar um lead (só o super admin apaga).
+  const apagado = parametros.apagado === "1" && podeAcessar(usuario.papel, "apagarLead");
   const selecionar = podeAcessar(usuario.papel, "atribuir");
   const [pagina, opcoes, responsaveis] = await Promise.all([
     listarLeads(usuario, filtros),
@@ -67,6 +70,12 @@ export default async function PaginaLeads({ searchParams }: PageProps<"/leads">)
           </Link>
         )}
       </div>
+
+      {apagado && (
+        <div className="mt-4">
+          <Aviso tipo="sucesso">Lead apagado. Ele já não aparece nas listas, no funil nem no perfil.</Aviso>
+        </div>
+      )}
 
       <nav aria-label="Visões" className="mt-6">
         <ul className="flex flex-wrap gap-2">

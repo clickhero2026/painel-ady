@@ -2,7 +2,7 @@ import { MAX_ANOTACAO } from "@/config/pipeline";
 import { registrarAuditoria } from "./auditoria";
 import { pool, transacao, type Consulta } from "./db";
 import { leadsVisiveis, ORIGEM, UUID, type QuemConsulta } from "./leads";
-import type { Papel } from "./papeis";
+import { ehAdmin, type Papel } from "./papeis";
 import { Parametros } from "./sql";
 
 /**
@@ -17,7 +17,7 @@ import { Parametros } from "./sql";
  */
 
 export function podeAnotar(papel: Papel): boolean {
-  return papel === "admin" || papel === "suporte" || papel === "vendas";
+  return ehAdmin(papel) || papel === "suporte" || papel === "vendas";
 }
 
 export class ErroAnotacao extends Error {

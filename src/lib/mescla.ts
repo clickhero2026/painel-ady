@@ -14,7 +14,7 @@ import {
   UUID,
   type QuemConsulta,
 } from "./leads";
-import type { Papel } from "./papeis";
+import { ehAdmin, type Papel } from "./papeis";
 import { Parametros } from "./sql";
 
 /**
@@ -37,7 +37,7 @@ import { Parametros } from "./sql";
  */
 
 export function podeMesclar(papel: Papel): boolean {
-  return papel === "admin";
+  return ehAdmin(papel);
 }
 
 export class ErroMescla extends Error {
@@ -49,7 +49,7 @@ export class ErroMescla extends Error {
   }
 }
 
-const TRAVA_MESCLA = 7_310_003;
+export const TRAVA_MESCLA = 7_310_003;
 
 // ── Normalização para a sugestão de duplicados ──
 

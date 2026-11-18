@@ -59,6 +59,10 @@ export async function recriarBanco(urlDono: string): Promise<void> {
   await banco.query(ler("db/grants/painel_app.sql"));
   await banco.query(ler("db/grants/painel_app_pipeline.sql"));
   await banco.query(ler("db/grants/painel_app_lead_manual.sql"));
+  // Migração do super admin: roda depois dos GRANTs (ela mesma dá o GRANT DELETE).
+  // Roda duas vezes de propósito: tem de ser idempotente.
+  await banco.query(ler("db/migrations/20261118_super_admin.sql"));
+  await banco.query(ler("db/migrations/20261118_super_admin.sql"));
   await banco.end();
 }
 

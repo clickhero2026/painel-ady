@@ -7,7 +7,7 @@ import { ETAPAS_PARADAS } from "./etapas";
 import { POR_PAGINA, type FiltrosLeads, type Ordem } from "./filtrosLeads";
 import { preencherMensagem, primeiroNome } from "./formatos";
 import { LEAD_MANUAL } from "./funil";
-import type { Papel } from "./papeis";
+import { ehAdmin, SQL_PAPEIS_RESPONSAVEL, type Papel } from "./papeis";
 import { Parametros } from "./sql";
 
 /**
@@ -43,6 +43,7 @@ export const ORIGEM = `teste7d_inscricoes i
 /** Condição SQL com os leads que `usuario` pode ver (sempre sem os mesclados em outro). */
 export function leadsVisiveis(usuario: QuemConsulta, p: Parametros): string {
   switch (usuario.papel) {
+    case "super_admin":
     case "admin":
     case "suporte":
       return NAO_MESCLADO;
@@ -61,7 +62,7 @@ export const NA_ETAPA_DESDE = "coalesce(e.atualizado_em, i.created_at)";
 export const ORDEM_ETAPA_COMERCIAL = `array_position(ARRAY[${ETAPAS_COMERCIAIS.map((x) => `'${x}'`).join(",")}], ${ETAPA_ATUAL})`;
 
 export function podeVerLeads(papel: Papel): boolean {
-  return papel === "admin" || papel === "suporte" || papel === "vendas";
+  return ehAdmin(papel) || papel === "suporte" || papel === "vendas";
 }
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -69,7 +70,7 @@ export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
  * Responsável válido: usuário ativo com papel que pode ser responsável
  * (vendas ou admin). Desativado ou com outro papel = "sem responsável".
  */
-export const RESPONSAVEL_VALIDO = "(ru.ativo AND ru.papel IN ('admin', 'vendas'))";
+export const RESPONSAVEL_VALIDO = `(ru.ativo AND ru.papel IN ${SQL_PAPEIS_RESPONSAVEL})`;
 /** Nome do responsável válido, ou null. */
 export const NOME_RESPONSAVEL = `CASE WHEN ${RESPONSAVEL_VALIDO} THEN coalesce(ru.nome, ru.email) END`;
 export const SEM_RESPONSAVEL = `(r.usuario_id IS NULL OR NOT ${RESPONSAVEL_VALIDO})`;
@@ -166,11 +167,11 @@ function condicoes(usuario: QuemConsulta, f: FiltrosLeads, p: Parametros): strin
       break;
     case "sem_responsavel":
       // lerFiltros só deixa esta visão chegar aqui para admin; conferido de novo.
-      if (usuario.papel !== "admin") throw new SemAcessoALeads();
+      if (!ehAdmin(usuario.papel)) throw new SemAcessoALeads();
       where.push(SEM_RESPONSAVEL);
       break;
     case "para_fechar":
-      if (usuario.papel !== "admin" && usuario.papel !== "suporte") throw new SemAcessoALeads();
+      if (!ehAdmin(usuario.papel) && usuario.papel !== "suporte") throw new SemAcessoALeads();
       where.push(PARA_FECHAR);
       break;
   }
@@ -236,7 +237,7 @@ export async function opcoesDeFiltro(usuario: QuemConsulta): Promise<OpcoesDeFil
       : (
           await pool().query<{ id: string; nome: string }>(
             `SELECT id, coalesce(nome, email) AS nome FROM painel_usuarios
-              WHERE ativo AND (papel IN ('admin', 'vendas') OR id IN (SELECT usuario_id FROM painel_lead_responsavel))
+              WHERE ativo AND (papel IN ${SQL_PAPEIS_RESPONSAVEL} OR id IN (SELECT usuario_id FROM painel_lead_responsavel))
               ORDER BY lower(coalesce(nome, email))`,
           )
         ).rows;
@@ -400,7 +401,7 @@ export interface ContadoresDoMenu {
 }
 
 export async function contadoresDoMenu(papel: Papel): Promise<ContadoresDoMenu> {
-  const contar = [papel === "admin" && "semResponsavel", (papel === "admin" || papel === "suporte") && "paraFechar"].filter(
+  const contar = [ehAdmin(papel) && "semResponsavel", (ehAdmin(papel) || papel === "suporte") && "paraFechar"].filter(
     Boolean,
   ) as (keyof ContadoresDoMenu)[];
   if (contar.length === 0) return {};

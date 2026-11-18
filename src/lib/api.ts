@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { appUrl } from "./env";
-import type { Papel } from "./papeis";
+import { temPapel, type Papel } from "./papeis";
 import { usuarioAtual, type UsuarioAtual } from "./sessao";
 
 /**
@@ -20,7 +20,7 @@ export async function usuarioDaApi(
 ): Promise<{ usuario: UsuarioAtual; erro?: never } | { usuario?: never; erro: NextResponse }> {
   const usuario = await usuarioAtual();
   if (!usuario) return { erro: json({ erro: "nao_autenticado" }, 401) };
-  if (!papeis.includes(usuario.papel)) return { erro: json({ erro: "sem_permissao" }, 403) };
+  if (!temPapel(usuario.papel, papeis)) return { erro: json({ erro: "sem_permissao" }, 403) };
   return { usuario };
 }
 
