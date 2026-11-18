@@ -28,7 +28,7 @@ Um app **interno**, em subdomínio próprio (`painel.useady.com.br`), com login 
 2. **Vendas:** estudar o perfil de cada lead antes de iniciar o relacionamento e buscar o fechamento. Cada vendedor vê só os seus leads.
 3. **Gestão e marketing:** indicadores do funil por criativo, campanha e versão do título, e estatísticas do perfil dos leads.
 
-**Pipeline comercial simples, sem integração com o Bitrix24.** Desde 03/11/2026 o painel tem um pipeline comercial próprio: etapa comercial por lead (com histórico), anotações internas da equipe e mescla de cadastros duplicados. Além disso, guarda **quem é o responsável por cada lead** (para a regra "cada vendedor vê só os seus") e a marcação de reunião realizada ou não. A etapa comercial é independente da situação do teste (coluna `status`, preenchida pelo site): uma não escreve na outra. O Bitrix24 (plano gratuito, sem webhook nem API para criar lead de fora) continua à parte: o painel não lê nem escreve nele.
+**Pipeline comercial simples, sem integração com o Bitrix24.** Desde 03/11/2026 o painel tem um pipeline comercial próprio: etapa comercial por lead (com histórico), anotações internas da equipe e mescla de cadastros duplicados. Além disso, guarda **quem é o responsável por cada lead** (para a regra "cada vendedor vê só os seus") e a marcação de reunião realizada ou não. A etapa comercial é independente da situação do teste (coluna `status`, preenchida pelo site): uma não escreve na outra. O Bitrix24 foi **descartado de vez** em 18/11/2026: não haverá integração com esse CRM (ver seção 13.3).
 
 ## 2. O que já existe
 
@@ -37,7 +37,7 @@ Um app **interno**, em subdomínio próprio (`painel.useady.com.br`), com login 
 - Site: repositório `clickhero2026/site-ady` (Next.js 16, App Router, CSS Modules, Vercel). O mesmo projeto Vercel serve o site (`useady.com.br`) e a LP (`lp.useady.com.br`), separados por host em `src/proxy.ts`.
 - Fluxo da pessoa: LP (formulário curto: nome, WhatsApp, e-mail) → `/ativacao` (10 perguntas, salva por bloco) → `/agendar` (Calendly embutido) → `/obrigado`. Quem parou no meio retoma por `/ativar-conta` (link com token pessoal ou WhatsApp + e-mail).
 - Rastreio: GTM (container `ady-web`) com Pixel do Meta. Conversões: **Lead** (cadastro), **CompleteRegistration** (ativação completa) e **Schedule** (agendamento). Eventos do dataLayer: `generate_lead`, `activation_complete`, `schedule`.
-- Bitrix24: integração desligada por flag (`TESTE7D_BITRIX_ATIVO`, padrão "false"). O código continua no repositório.
+- Bitrix24: **descartado de vez** em 18/11/2026. A integração do site está desligada por flag (`TESTE7D_BITRIX_ATIVO`, padrão "false"); o código do site e as colunas `bitrix_*` ainda existem e a limpeza será decidida depois (seção 13.3).
 - Planilha de apoio: um fluxo do n8n copia o Neon para o Google Sheets a cada 5 minutos (colunas incluem `link_ativacao` e `mensagem_whatsapp`). É uma solução provisória até o painel existir.
 
 ### 2.2 Banco de dados (Neon, projeto de marketing)
@@ -48,7 +48,7 @@ Tabela principal: `teste7d_inscricoes`. **41 colunas originais + 4 da migração
 - Origem: `utm_source`, `utm_medium`, `utm_campaign`, `utm_content` (nome do criativo, padrão `T7D-R1-H01-VID`), `utm_term`, `lp_variant` (A a F), `fbclid`, `referrer`, `landing_url`, `user_agent`, `ip_hash`.
 - Etapa 2 (ativação), todas opcionais: `negocio_nome_oferta`, `cidade_bairro`, `atende_todo_brasil`, `acao_desejada`, `acao_desejada_outro`, `experiencia_anuncios`, `acesso_redes`, `conta_anuncios`, `cartao_pagamento`, `arquivo_logo`, `reuniao_computador`, `observacoes`, `etapa2_concluida_em`.
 - Agendamento: `calendly_evento_uri`, `agendado_em`, `reuniao_em`, `realizada_em`, `status`.
-- Bitrix (hoje sem uso): `bitrix_lead_id`, `bitrix_sync_status`, `bitrix_sync_em`, `bitrix_erro`.
+- Bitrix (sem uso; Bitrix24 descartado): `bitrix_lead_id`, `bitrix_sync_status`, `bitrix_sync_em`, `bitrix_erro`.
 - `status` aceita: `inscrito`, `ativacao_preenchida`, `agendado`, `realizado`, `nao_compareceu`.
 - **As respostas da etapa 2 ficam gravadas como chaves curtas**, não como o texto da opção (por exemplo `so_instagram`). O mapa de chaves e textos está em `src/lib/teste7dOptions.ts` no repositório do site. O painel precisa do mesmo mapa para mostrar o texto humano.
 - Link de ativação de cada lead: `https://lp.useady.com.br/ativar-conta?t=<token_retomada>` (válido por 30 dias desde `created_at`). O token funciona como senha da pessoa: quem tem o link abre e altera o cadastro dela.
@@ -445,7 +445,7 @@ Decisões por conta própria e o que depende de mim. Commit local no branch atua
 
 ## 12. Fora do escopo
 
-Integração com o Bitrix24 (ler ou escrever), cobrança, integração de pagamento, e qualquer alteração no site público ou na LP. O pipeline comercial do painel é simples de propósito: sem tarefas, lembretes, agenda, propostas, valores de negócio nem automações. Anotações não são editadas nem apagadas (regra atual). Se uma mudança no site for necessária (por exemplo, o webhook do Calendly), tratar em prompt separado, no repositório do site.
+Integração com o Bitrix24 (descartada de vez em 18/11/2026), cobrança, integração de pagamento, e qualquer alteração no site público ou na LP. O pipeline comercial do painel é simples de propósito: sem tarefas, lembretes, agenda, propostas, valores de negócio nem automações. Anotações não são editadas nem apagadas (regra atual). Se uma mudança no site for necessária (por exemplo, o webhook do Calendly), tratar em prompt separado, no repositório do site.
 
 ## 13. Decisões fechadas em 28/10/2026
 
@@ -482,6 +482,10 @@ Integração com o Bitrix24 (ler ou escrever), cobrança, integração de pagame
 7. **Mescla:** cadastro mesclado em outro (duplicado) não é apagado (422; desfazer a mescla antes). Principal com cadastros mesclados nele também não (422; a ficha avisa e não mostra o botão): apagá-lo soltaria os duplicados, que voltariam às listas e contagens sem ninguém pedir.
 8. **Auditoria `apagar_lead`** com `usuario_id`, `lead_id` e só `status`, `utm_content`, `utm_campaign`, `lp_variant`, `created_at`. Sem nome, e-mail, WhatsApp, token nem respostas. Os registros antigos de auditoria do lead ficam (só ids; `lead_id` lá não é chave estrangeira).
 9. Depois de apagar: volta para /leads com "Lead apagado.". Funil, perfil, origem, pipeline e contadores leem o banco a cada requisição (sem cache), então refletem na hora. O link de retomada do lead apagado cai no "link inválido" do site, sem erro.
+10. **GRANT DELETE aceito.** O `painel_app` ganha `DELETE` em `teste7d_inscricoes` (o Postgres não limita DELETE por coluna nem por linha; a regra "só super admin" fica no código). A alternativa com função `SECURITY DEFINER` foi avaliada e descartada: o id de quem apaga viria do próprio painel, então o ganho de segurança é marginal.
+11. **Bitrix24 descartado de vez.** Não haverá integração com esse CRM, nem no painel nem pelo painel. Apagar um lead no painel não mexe em nada no Bitrix. O que ainda existe de Bitrix (código do site, colunas `bitrix_*`, variáveis `BITRIX_*` e `TESTE7D_BITRIX_ATIVO`) fica como está por enquanto; a limpeza será decidida depois.
+12. **Limitação: planilha provisória do n8n.** A planilha "ady - Trial - cadastro Planilha" (Google Sheets, alimentada pelo n8n) é externa ao repositório e **não é apagada** quando um lead é apagado no painel. Os dados pessoais do lead apagado podem continuar lá; tirar de lá é manual (ou mudar o fluxo do n8n), fora deste projeto.
+13. **Ordem de implantação:** (1) rodar `db/migrations/20261118_super_admin.sql` no Postgres da VPS (Easypanel, banco "ady"), com o dono das tabelas, colando o arquivo inteiro no psql, e conferir os SELECTs do fim; (2) merge do PR `feat/super-admin-apagar-lead`; (3) deploy; (4) teste em produção com um lead cadastrado à mão ("Novo lead"), apagado pelo super admin. **Janela entre (1) e (3):** o código antigo ainda no ar não conhece `super_admin`, então o Rafael consegue fazer login mas recebe 403 em todas as páginas e APIs até o deploy (os outros usuários não são afetados; se um admin tentar mudar o papel dele na tela antiga, o trigger recusa e nada muda). Manter essa janela curta. A ordem inversa (deploy antes da migração) não tem janela: o código novo funciona igual ao antigo enquanto não existe super admin, e "Apagar lead" só aparece depois da migração.
 
 ## 13.2 Decisões fechadas em 04/11/2026 (cadastro manual de lead)
 

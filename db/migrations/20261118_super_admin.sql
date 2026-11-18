@@ -6,6 +6,15 @@
 -- e dos arquivos de db/grants/. Idempotente: rodar de novo não quebra nada
 -- nem duplica nada. Tudo numa transação: se algo falhar, nada muda.
 --
+-- Pode ser colado INTEIRO no psql interativo (console do Easypanel): não
+-- usa metacomandos nem variáveis do psql, e o BEGIN/COMMIT está aqui.
+-- Conferido em Postgres 18.6 com o Rafael já admin ativo e outros usuários:
+-- 1ª vez "INSERT 0 1" (promoveu), 2ª vez "INSERT 0 0" (nada a fazer).
+-- Se aparecer qualquer ERROR antes do COMMIT, o COMMIT vira ROLLBACK e
+-- nada muda (rodado como painel_app, por exemplo: "must be owner").
+-- Se a saída dos SELECTs do fim for maior que a tela, o psql pode abrir o
+-- paginador: aperte q para sair dele.
+--
 -- O que faz, na ordem:
 --   1. CHECK de painel_usuarios.papel passa a aceitar 'super_admin' (e no
 --      máximo UM super admin, por índice único parcial).
