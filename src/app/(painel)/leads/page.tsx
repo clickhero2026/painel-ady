@@ -3,7 +3,7 @@ import Link from "next/link";
 import { UserPlus } from "lucide-react";
 import { EtiquetaEtapa } from "@/components/leads/EtiquetaEtapa";
 import { EtiquetaComercial } from "@/components/pipeline/EtiquetaComercial";
-import { CaixaDoLead, SelecaoEmLote } from "@/components/leads/SelecaoEmLote";
+import { AvisoDoLote, CaixaDoLead, SelecaoEmLote } from "@/components/leads/SelecaoEmLote";
 import { Aviso } from "@/components/ui/Aviso";
 import { Seletor } from "@/components/ui/Seletor";
 import { botao, campo, rotulo } from "@/components/ui/estilos";
@@ -51,6 +51,43 @@ export default async function PaginaLeads({ searchParams }: PageProps<"/leads">)
     (c) => filtros[c],
   ).length;
   const semDadosDaVisao = filtros.visao === "agendados_semana" && !pagina.temDadosDeReuniao;
+
+  const conteudo =
+    semDadosDaVisao ? (
+      <Aviso tipo="info">
+        Sem dados de reunião ainda. A data da reunião não é preenchida por nenhum fluxo por enquanto, então esta
+        visão fica vazia até isso existir.
+      </Aviso>
+    ) : pagina.total === 0 ? (
+      <Aviso tipo="info">
+        {usuario.papel === "vendas" && !filtros.q && !filtrosAtivos && !filtros.visao
+          ? "Nenhum lead atribuído a você ainda."
+          : "Nenhum lead encontrado com estes filtros."}
+      </Aviso>
+    ) : (
+      <>
+        {paraFechar && (
+          <p className="mb-3 text-sm text-texto-suave">
+            Agendados ainda sem desfecho, do agendamento mais antigo para o mais novo. A data da reunião ainda não é
+            preenchida por nenhum fluxo; quando existir e já tiver passado, o lead aparece destacado. Marque o desfecho
+            na ficha.
+          </p>
+        )}
+        {selecionar ? (
+          // A seleção vale para esta página da lista (zera ao trocar de página ou filtro).
+          <SelecaoEmLote key={urlDaLista(filtros, {})} ids={pagina.itens.map((l) => l.id)} opcoes={responsaveis}>
+            <TabelaLeads itens={pagina.itens} filtros={filtros} {...colunas} />
+            <CartoesLeads itens={pagina.itens} {...colunas} />
+          </SelecaoEmLote>
+        ) : (
+          <>
+            <TabelaLeads itens={pagina.itens} filtros={filtros} {...colunas} />
+            <CartoesLeads itens={pagina.itens} {...colunas} />
+          </>
+        )}
+        <Paginacao filtros={filtros} pagina={pagina.pagina} paginas={pagina.paginas} />
+      </>
+    );
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -184,40 +221,11 @@ export default async function PaginaLeads({ searchParams }: PageProps<"/leads">)
           {filtros.visao ? ` em “${ROTULO_VISAO[filtros.visao]}”` : ""}
         </p>
 
-        {semDadosDaVisao ? (
-          <Aviso tipo="info">
-            Sem dados de reunião ainda. A data da reunião não é preenchida por nenhum fluxo por enquanto, então esta
-            visão fica vazia até isso existir.
-          </Aviso>
-        ) : pagina.total === 0 ? (
-          <Aviso tipo="info">
-            {usuario.papel === "vendas" && !filtros.q && !filtrosAtivos && !filtros.visao
-              ? "Nenhum lead atribuído a você ainda."
-              : "Nenhum lead encontrado com estes filtros."}
-          </Aviso>
+        {selecionar ? (
+          // Fora da seleção: o aviso do lote continua quando a lista esvazia.
+          <AvisoDoLote key={urlDaLista(filtros, {})}>{conteudo}</AvisoDoLote>
         ) : (
-          <>
-            {paraFechar && (
-              <p className="mb-3 text-sm text-texto-suave">
-                Agendados ainda sem desfecho, do agendamento mais antigo para o mais novo. A data da reunião ainda não é
-                preenchida por nenhum fluxo; quando existir e já tiver passado, o lead aparece destacado. Marque o desfecho
-                na ficha.
-              </p>
-            )}
-            {selecionar ? (
-              // A seleção vale para esta página da lista (zera ao trocar de página ou filtro).
-              <SelecaoEmLote key={urlDaLista(filtros, {})} ids={pagina.itens.map((l) => l.id)} opcoes={responsaveis}>
-                <TabelaLeads itens={pagina.itens} filtros={filtros} {...colunas} />
-                <CartoesLeads itens={pagina.itens} {...colunas} />
-              </SelecaoEmLote>
-            ) : (
-              <>
-                <TabelaLeads itens={pagina.itens} filtros={filtros} {...colunas} />
-                <CartoesLeads itens={pagina.itens} {...colunas} />
-              </>
-            )}
-            <Paginacao filtros={filtros} pagina={pagina.pagina} paginas={pagina.paginas} />
-          </>
+          conteudo
         )}
       </section>
     </div>

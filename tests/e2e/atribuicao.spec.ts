@@ -165,7 +165,11 @@ test.describe("atribuição", () => {
     await page.getByLabel("Responsável para os selecionados").selectOption({ label: "Vera Vendas (Vendas)" });
     await page.getByRole("button", { name: "Atribuir aos selecionados" }).focus();
     await page.keyboard.press("Enter");
-    await expect(page.getByText("1 lead atualizado; 1 já estava assim.")).toBeVisible();
+    // Aviso na região viva da página (fora do bloco do lote), com o foco nele.
+    const aviso = page.getByRole("status").filter({ hasText: "1 lead atualizado; 1 já estava assim." });
+    await expect(aviso).toBeVisible();
+    await expect(aviso).toHaveAttribute("aria-live", "polite");
+    await expect(aviso).toBeFocused();
     await expect(page.getByText("Nenhum lead selecionado.")).toBeVisible();
     expect(await sql("SELECT 1 FROM painel_auditoria WHERE acao = 'atribuir_lead'")).toHaveLength(1);
 
@@ -175,8 +179,12 @@ test.describe("atribuição", () => {
     await expect(page.getByText(`${NA_FILA - 2} leads selecionados.`)).toBeVisible();
     await page.getByLabel("Responsável para os selecionados").selectOption({ label: "Vitor Vendas (Vendas)" });
     await page.getByRole("button", { name: "Atribuir aos selecionados" }).click();
-    await expect(page.getByText(`${NA_FILA - 2} leads atualizados.`)).toBeVisible();
+    // A fila esvazia: o bloco do lote some com a lista, e o aviso e o foco ficam.
     await expect(page.getByText("Nenhum lead encontrado com estes filtros.")).toBeVisible();
+    await expect(page.getByRole("form", { name: "Atribuir responsável aos leads selecionados" })).toHaveCount(0);
+    const avisoFila = page.getByRole("status").filter({ hasText: `${NA_FILA - 2} leads atualizados.` });
+    await expect(avisoFila).toBeVisible();
+    await expect(avisoFila).toBeFocused();
 
     await page.setViewportSize({ width: 1280, height: 860 });
     await expect(page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Leads 0 sem responsável" })).toBeVisible();
