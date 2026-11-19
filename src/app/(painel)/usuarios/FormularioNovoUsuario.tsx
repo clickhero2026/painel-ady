@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef } from "react";
 import { Aviso } from "@/components/ui/Aviso";
 import { botao, campo, rotulo } from "@/components/ui/estilos";
-import { PAPEIS_ATRIBUIVEIS, ROTULO_PAPEL } from "@/lib/papeis";
+import { PAPEIS_ATRIBUIVEIS, ROTULO_PAPEL, DESCRICAO_GESTOR } from "@/lib/papeis";
 import { adicionarUsuario } from "./acoes";
 
 export function FormularioNovoUsuario() {
@@ -33,13 +33,16 @@ export function FormularioNovoUsuario() {
           <label htmlFor="novo-papel" className={rotulo}>
             Papel
           </label>
-          <select id="novo-papel" name="papel" required defaultValue="leitura" className={campo}>
+          <select id="novo-papel" name="papel" required defaultValue="leitura" aria-describedby="novo-papel-ajuda" className={campo}>
             {PAPEIS_ATRIBUIVEIS.map((p) => (
               <option key={p} value={p}>
                 {ROTULO_PAPEL[p]}
               </option>
             ))}
           </select>
+          <p id="novo-papel-ajuda" className="mt-1 text-xs text-texto-suave">
+            {DESCRICAO_GESTOR}
+          </p>
         </div>
         <button type="submit" disabled={enviando} className={botao.primario}>
           {enviando ? "Adicionando…" : "Adicionar"}

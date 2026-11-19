@@ -1,6 +1,6 @@
 import * as z from "zod";
 import { ETAPAS_COMERCIAIS, CARTOES_POR_COLUNA, type EtapaComercial } from "@/config/pipeline";
-import { ehAdmin, type Papel } from "./papeis";
+import { temPapel, VEEM_O_RESPONSAVEL, type Papel } from "./papeis";
 
 /**
  * Filtros, modo (quadro ou lista), ordem e página da tela de pipeline,
@@ -72,7 +72,7 @@ function valor(entrada: Entrada, chave: string): string | undefined {
 
 /** Quem filtra por responsável (vendas só vê os seus). */
 export function podeFiltrarResponsavelNoPipeline(papel: Papel): boolean {
-  return ehAdmin(papel) || papel === "suporte";
+  return temPapel(papel, VEEM_O_RESPONSAVEL);
 }
 
 export function lerFiltrosPipeline(entrada: Entrada, papel: Papel): FiltrosPipeline {

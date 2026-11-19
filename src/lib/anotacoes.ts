@@ -2,14 +2,14 @@ import { MAX_ANOTACAO } from "@/config/pipeline";
 import { registrarAuditoria } from "./auditoria";
 import { pool, transacao, type Consulta } from "./db";
 import { leadsVisiveis, ORIGEM, UUID, type QuemConsulta } from "./leads";
-import { ehAdmin, type Papel } from "./papeis";
+import { podeAcessar, type Papel } from "./papeis";
 import { Parametros } from "./sql";
 
 /**
  * Anotações internas da equipe sobre um lead (painel_lead_anotacao). Não
  * confundir com `observacoes`, que o próprio lead escreve na ativação.
  *
- * - Escrevem e leem: admin, suporte e vendas (vendas só nos seus leads, via
+ * - Escrevem e leem: admin, gestor, suporte e vendas (vendas só nos seus leads, via
  *   leadsVisiveis). "leitura" não vê lead individual.
  * - Só INSERT: não se edita nem se apaga (o painel_app nem tem permissão).
  * - O texto é sempre mostrado como texto puro (React escapa; quebras de
@@ -17,7 +17,7 @@ import { Parametros } from "./sql";
  */
 
 export function podeAnotar(papel: Papel): boolean {
-  return ehAdmin(papel) || papel === "suporte" || papel === "vendas";
+  return podeAcessar(papel, "anotar");
 }
 
 export class ErroAnotacao extends Error {

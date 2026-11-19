@@ -11,7 +11,7 @@ function resposta(e: unknown) {
   return json({ erro: e.motivo, mensagem: e.message }, 409);
 }
 
-/** POST /api/leads/:id/reuniao — marca realizada ou não compareceu (só a partir de agendado). Suporte e admin. */
+/** POST /api/leads/:id/reuniao — marca realizada ou não compareceu (só a partir de agendado). Suporte, gestor e admin. */
 export async function POST(request: Request, { params }: RouteContext<"/api/leads/[id]/reuniao">) {
   if (!origemValida(request)) return json({ erro: "origem_invalida" }, 403);
   const { usuario, erro } = await usuarioDaApi(ACESSO_ROTAS.marcarReuniao);
@@ -28,7 +28,7 @@ export async function POST(request: Request, { params }: RouteContext<"/api/lead
   }
 }
 
-/** DELETE /api/leads/:id/reuniao — desfaz a marcação (até 24 horas depois). Suporte e admin. */
+/** DELETE /api/leads/:id/reuniao — desfaz a marcação (até 24 horas depois). Suporte, gestor e admin. */
 export async function DELETE(request: Request, { params }: RouteContext<"/api/leads/[id]/reuniao">) {
   if (!origemValida(request)) return json({ erro: "origem_invalida" }, 403);
   const { usuario, erro } = await usuarioDaApi(ACESSO_ROTAS.marcarReuniao);

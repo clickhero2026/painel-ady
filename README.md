@@ -104,6 +104,7 @@ rodam sozinhas: o dono do banco roda à mão (os comentários dos arquivos ainda
 falam do SQL Editor do Neon, da época em que o banco estava lá).
 
 Ordem num banco novo: `20261028_painel_base.sql`, `20261103_painel_pipeline.sql`,
-os três arquivos de `db/grants/` e, por último, `20261118_super_admin.sql`
+os três arquivos de `db/grants/`, `20261118_super_admin.sql`
 (papel `super_admin`, travas no banco e o `GRANT DELETE` para apagar lead;
-termina com SELECTs de conferência).
+termina com SELECTs de conferência) e `20261119_perfil_gestor.sql` (papel
+`gestor` na CHECK; sem GRANT novo; pode rodar antes do deploy).

@@ -27,7 +27,7 @@ import {
   UUID,
   type QuemConsulta,
 } from "./leads";
-import { ehAdmin, type Papel } from "./papeis";
+import { podeAcessar, temPapel, VEEM_O_RESPONSAVEL, type Papel } from "./papeis";
 import { Parametros } from "./sql";
 
 /**
@@ -42,9 +42,9 @@ import { Parametros } from "./sql";
 
 // ── Quem pode ──
 
-/** Mudar etapa: admin em qualquer lead; vendas só nos seus; suporte só vê. */
+/** Mudar etapa: admin e gestor em qualquer lead; vendas só nos seus (leadsVisiveis); suporte só vê. */
 export function podeMudarEtapa(papel: Papel): boolean {
-  return ehAdmin(papel) || papel === "vendas";
+  return podeAcessar(papel, "mudarEtapa");
 }
 
 // ── Mudança de etapa ──
@@ -226,7 +226,7 @@ export interface CartaoDoPipeline {
   /** Origem normalizada (igual à do funil), já sem valores com dado pessoal. */
   source: string;
   campaign: string;
-  /** Só para admin e suporte (vendas vê só os seus). */
+  /** Só para admin, gestor e suporte (vendas vê só os seus). */
   responsavel_nome: string | null;
   motivo_perda: string | null;
 }
@@ -265,7 +265,7 @@ function protegerCartao(c: CartaoDoPipeline, papel: Papel): CartaoDoPipeline {
     ...c,
     source: mascararOrigem(c.source),
     campaign: mascararOrigem(c.campaign),
-    responsavel_nome: papel === "vendas" ? null : c.responsavel_nome,
+    responsavel_nome: temPapel(papel, VEEM_O_RESPONSAVEL) ? c.responsavel_nome : null,
   };
 }
 

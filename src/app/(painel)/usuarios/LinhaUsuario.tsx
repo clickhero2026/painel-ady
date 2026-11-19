@@ -3,7 +3,7 @@
 import { useActionState, useId } from "react";
 import { Aviso } from "@/components/ui/Aviso";
 import { botao, campo } from "@/components/ui/estilos";
-import { ehSuperAdmin, PAPEIS_ATRIBUIVEIS, ROTULO_PAPEL, type Papel } from "@/lib/papeis";
+import { DESCRICAO_GESTOR, ehGestor, ehSuperAdmin, PAPEIS_ATRIBUIVEIS, ROTULO_PAPEL, type Papel } from "@/lib/papeis";
 import { mudarAtivo, mudarPapel } from "./acoes";
 
 interface Props {
@@ -35,12 +35,18 @@ export function LinhaUsuario({ usuario, ehVoce }: Props) {
             {intocavel && (
               <span className="rounded-full bg-petroleo-escuro px-2 py-0.5 text-xs font-semibold text-white">Super admin</span>
             )}
+            {ehGestor(usuario.papel) && (
+              <span className="rounded-full border border-petroleo bg-petroleo-suave px-2 py-0.5 text-xs font-semibold text-petroleo-escuro">
+                Gestor
+              </span>
+            )}
             {ehVoce && <span className="rounded-full bg-petroleo-suave px-2 py-0.5 text-xs text-petroleo-escuro">você</span>}
             {!usuario.ativo && (
               <span className="rounded-full border border-borda-campo px-2 py-0.5 text-xs text-texto-suave">desativado</span>
             )}
           </p>
           {usuario.nome && <p className="text-sm text-texto-suave wrap-anywhere">{usuario.email}</p>}
+          {ehGestor(usuario.papel) && <p className="text-xs text-texto-suave">{DESCRICAO_GESTOR}</p>}
           <p className="text-xs text-texto-suave">
             {usuario.ultimoAcesso ? `Último acesso: ${formatoData.format(new Date(usuario.ultimoAcesso))}` : "Ainda não entrou"}
           </p>

@@ -4,14 +4,14 @@ import { registrarAuditoria } from "./auditoria";
 import { pool, transacao } from "./db";
 import { ORIGEM_MANUAL } from "./funil";
 import { leadsVisiveis, ORIGEM, UUID, type QuemConsulta } from "./leads";
-import { ehAdmin, type Papel } from "./papeis";
+import { ehGestor, podeAcessar, type Papel } from "./papeis";
 import { Parametros } from "./sql";
 import { validarDadosDoLead, type ErrosDoLead } from "./validacaoLead";
 
 /**
  * Cadastro manual de lead ("Novo lead"), decidido em 04/11/2026:
  *
- * - Só admin e vendas (conferido aqui, no servidor; os outros papéis
+ * - Só admin, gestor e vendas (conferido aqui, no servidor; os outros papéis
  *   recebem sem_permissao).
  * - Grava em teste7d_inscricoes só nome, e-mail, WhatsApp e
  *   utm_source = 'manual' (GRANT em db/grants/painel_app_lead_manual.sql).
@@ -19,7 +19,9 @@ import { validarDadosDoLead, type ErrosDoLead } from "./validacaoLead";
  *   created_at... O lead preenche a ativação (etapa 2) pelo link de
  *   ativação, como qualquer cadastro do site; o vendedor não preenche por ele.
  * - Responsável: vendas = o próprio usuário; admin = quem escolher (ativo,
- *   vendas ou admin, a mesma regra de atribuicao.ts) ou ninguém.
+ *   vendas ou admin, a mesma regra de atribuicao.ts) ou ninguém; gestor =
+ *   ninguém (o lead entra em "Sem responsável"; gestor não é responsável
+ *   por lead e não escolhe quem é).
  * - Anotação inicial opcional, gravada pelo mesmo caminho das anotações.
  * - Tudo numa transação, com auditoria `criar_lead` (só via e
  *   responsavel_id; nada de nome, e-mail ou WhatsApp).
@@ -34,7 +36,7 @@ import { validarDadosDoLead, type ErrosDoLead } from "./validacaoLead";
  */
 
 export function podeCriarLead(papel: Papel): boolean {
-  return ehAdmin(papel) || papel === "vendas";
+  return podeAcessar(papel, "criarLead");
 }
 
 export const MENSAGEM_EMAIL_EXISTENTE = "Já existe um cadastro com este e-mail.";
@@ -104,6 +106,8 @@ export async function criarLeadManual(
     erros.responsavel = "Responsável inválido.";
   } else if (usuario.papel === "vendas" && pedido && pedido !== usuario.id.toLowerCase()) {
     erros.responsavel = "Quem é de vendas não escolhe o responsável: o lead fica com você.";
+  } else if (ehGestor(usuario.papel) && pedido) {
+    erros.responsavel = "Quem é gestor não escolhe o responsável: o lead entra em “Sem responsável”.";
   }
 
   if (!validacao.ok || Object.keys(erros).length > 0) throw invalido(erros);

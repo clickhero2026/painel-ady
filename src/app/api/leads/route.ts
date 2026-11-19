@@ -26,7 +26,7 @@ const corpo = z.object({
 });
 
 /**
- * POST /api/leads — cadastra um lead à mão (admin e vendas). 201 com o id;
+ * POST /api/leads — cadastra um lead à mão (admin, gestor e vendas). 201 com o id;
  * 403 sem permissão; 422 com os erros de cada campo; 409 se o e-mail já
  * existe (com o id do lead só se ele for visível para quem pediu); 429 com
  * tentativas demais.

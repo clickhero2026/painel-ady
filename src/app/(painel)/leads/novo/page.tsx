@@ -4,15 +4,16 @@ import { ArrowLeft } from "lucide-react";
 import { FormularioNovoLead } from "@/components/leads/FormularioNovoLead";
 import { VALIDADE_LINK_ATIVACAO_DIAS } from "@/config/contato";
 import { responsaveisPossiveis } from "@/lib/atribuicao";
-import { ACESSO_ROTAS, ehAdmin } from "@/lib/papeis";
+import { ACESSO_ROTAS, ehAdmin, ehGestor } from "@/lib/papeis";
 import { exigirUsuario } from "@/lib/sessao";
 
 export const metadata: Metadata = { title: "Novo lead" };
 
-/** Cadastro manual de lead: só admin e vendas (os outros papéis recebem 403). */
+/** Cadastro manual de lead: só admin, gestor e vendas (os outros papéis recebem 403). */
 export default async function PaginaNovoLead() {
   const usuario = await exigirUsuario(ACESSO_ROTAS.criarLead);
-  const opcoes = ehAdmin(usuario.papel) ? await responsaveisPossiveis() : null;
+  // Admin escolhe o responsável; vendas fica com o lead; gestor manda para a fila "Sem responsável".
+  const opcoes = ehAdmin(usuario.papel) ? await responsaveisPossiveis() : ehGestor(usuario.papel) ? "fila" : "voce";
 
   return (
     <div className="mx-auto max-w-2xl">

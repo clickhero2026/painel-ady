@@ -78,7 +78,7 @@ Como o funil aparece nos dados:
 | Projeto | Projeto Vercel **separado** e repositório próprio. A LP ficou junto do site por causa do roteamento por host, mas ferramenta interna não deve compartilhar deploy com o site público. |
 | Banco | Mesmo Neon, com usuário de banco próprio (`painel_app`), leitura restrita por colunas e escrita só nas tabelas do painel e em duas colunas da tabela de cadastros (`status`, `realizada_em`). |
 | Login | Google. A equipe usa Google Workspace, **exceto 2 pessoas (que serão admins)**. Por isso: lista de usuários autorizados por **e-mail** (não por domínio) e, como segunda via, **link mágico por e-mail via SendGrid** (a empresa já tem conta). Quem não está na lista, ou está desativado, não entra por nenhum dos dois métodos. |
-| Papéis | `super_admin`, `admin`, `suporte`, `vendas`, `leitura`. O `super_admin` (só rafael@clickhero.com.br, definido por migração) faz tudo o que o admin faz e é o único que apaga leads. Ver seção 13.3. |
+| Papéis | `super_admin`, `admin`, `gestor`, `suporte`, `vendas`, `leitura`. O `super_admin` (só rafael@clickhero.com.br, definido por migração) faz tudo o que o admin faz e é o único que apaga leads (seção 13.3). O `gestor` soma suporte e vendas em todos os leads, sem atribuir, mesclar, exportar nem gerenciar usuários, e não é responsável por lead (seção 13.4). |
 | Visibilidade | **Vendedor vê só os leads dos quais é responsável.** Admin vê todos. Suporte vê todos. Leitura vê só números agregados, sem dados pessoais. |
 | Escopo | Pipeline comercial simples (etapa comercial, anotações internas e mescla de duplicados), responsável por lead e marcação de reunião realizada ou não. Sem integração com o Bitrix24. Ver seção 13, decisões de 03/11/2026. |
 | Prioridade | Fase 1 com fichas dos leads e funil, nessa ordem. |
@@ -163,26 +163,29 @@ Como o funil aparece nos dados:
 
 ## 7. Papéis e permissões
 
-| Recurso | super_admin | admin | suporte | vendas | leitura |
-|---|---|---|---|---|---|
-| Lista e ficha de leads | todos | todos | todos | só os seus | não |
-| Dados pessoais (nome, WhatsApp, e-mail) | sim | sim | sim | só dos seus | não |
-| Link de ativação | sim | sim | sim | só dos seus | não |
-| Marcar realizada ou não compareceu | sim | sim | sim | não | não |
-| Atribuir responsável | sim | sim | não | não | não |
-| Ver etapa comercial e histórico (ficha e pipeline) | todos | todos | todos | só os seus | não |
-| Mudar etapa comercial | todos | todos | não (só vê) | só os seus | não |
-| Anotações internas (ler e escrever; sem editar nem apagar) | todos | todos | todos | só os seus | não |
-| Mesclar e desfazer mescla; "Possíveis duplicados" | sim | sim | não | não | não |
-| Cadastrar lead à mão ("Novo lead") | sim (escolhe o responsável ou nenhum) | sim (escolhe o responsável ou nenhum) | não | sim (fica responsável) | não |
-| Tela Pipeline (quadro e lista) | todos, com filtro por responsável | todos, com filtro por responsável | todos, só leitura | só os seus (sem os sem responsável) | não |
-| Funil comercial (agregados) | sim, com corte por responsável | sim, com corte por responsável | sim, com corte por responsável | sim, sem corte por responsável | sim, sem corte por responsável e com células de 1 a 4 ocultas |
-| Indicadores e perfil agregados | sim | sim | sim | sim (padrão sugerido) | sim, sem dados pessoais |
-| Usuários e auditoria | sim (não pode ser alterado por ninguém pelo painel) | sim (não altera o super admin) | não | não | não |
-| Exportar CSV | sim | sim | não | não | não |
-| **Apagar lead** (de vez, um por vez, com confirmação) | **sim** | não | não | não | não |
+| Recurso | super_admin | admin | gestor | suporte | vendas | leitura |
+|---|---|---|---|---|---|---|
+| Lista e ficha de leads | todos | todos | todos | todos | só os seus | não |
+| Dados pessoais (nome, WhatsApp, e-mail) | sim | sim | sim | sim | só dos seus | não |
+| Link de ativação | sim | sim | sim | sim | só dos seus | não |
+| Marcar realizada ou não compareceu | sim | sim | sim | sim | não | não |
+| Atribuir responsável | sim | sim | não | não | não | não |
+| Ver etapa comercial e histórico (ficha e pipeline) | todos | todos | todos | todos | só os seus | não |
+| Mudar etapa comercial | todos | todos | todos | não (só vê) | só os seus | não |
+| Anotações internas (ler e escrever; sem editar nem apagar) | todos | todos | todos | todos | só os seus | não |
+| Mesclar e desfazer mescla; "Possíveis duplicados" | sim | sim | não | não | não | não |
+| Cadastrar lead à mão ("Novo lead") | sim (escolhe o responsável ou nenhum) | sim (escolhe o responsável ou nenhum) | sim (entra em "Sem responsável"; não escolhe) | não | sim (fica responsável) | não |
+| Tela Pipeline (quadro e lista) | todos, com filtro por responsável | todos, com filtro por responsável | todos, com filtro por responsável, e move qualquer lead | todos, só leitura | só os seus (sem os sem responsável) | não |
+| Funil comercial (agregados) | sim, com corte por responsável | sim, com corte por responsável | sim, com corte por responsável | sim, com corte por responsável | sim, sem corte por responsável | sim, sem corte por responsável e com células de 1 a 4 ocultas |
+| Indicadores e perfil agregados | sim | sim | sim | sim | sim (padrão sugerido) | sim, sem dados pessoais |
+| Usuários e auditoria | sim (não pode ser alterado por ninguém pelo painel) | sim (não altera o super admin) | não | não | não | não |
+| Exportar CSV | sim | sim | não | não | não | não |
+| **Apagar lead** (de vez, um por vez, com confirmação) | **sim** | não | não | não | não | não |
+| Ser responsável por lead (atribuição, rodízio, fila de vendedores) | sim | sim | **não** | não | sim | não |
 
 O `super_admin` herda 100% das permissões do admin: no código, toda checagem de admin passa por `ehAdmin(papel)` (vale para os dois) e as listas de `ACESSO_ROTAS` que aceitam "admin" aceitam o super admin por `temPapel` (`src/lib/papeis.ts`). Só `apagarLead` exige `ehSuperAdmin`. Pode ser responsável por lead, como o admin.
+
+O `gestor` soma as permissões de suporte e de vendas, aplicadas a **todos** os leads (na `leadsVisiveis` ele vê o mesmo que admin e suporte: tudo, menos os mesclados em outro, que respondem 404). **Gestor não é responsável por lead:** fica fora de `PAPEIS_RESPONSAVEL`, não aparece entre os possíveis responsáveis, não pode receber lead (nem pelo admin) e não entra em rodízio nem em fila de vendedores; o lead que ele cadastra entra em "Sem responsável". Um vendedor promovido a gestor deixa os leads dele em "Sem responsável" (a linha de responsável continua no banco, mas deixa de valer, como acontece com um vendedor desativado). Não há tela nem API de auditoria hoje (só a tabela `painel_auditoria`); "Usuários e auditoria" vale para quando existir.
 
 A restrição por papel e por responsável deve ser aplicada **no acesso a dados do servidor**, em uma função única (por exemplo `leadsVisiveis(usuario)`), e não só escondendo itens na interface. Teste obrigatório: um vendedor não consegue ler a ficha de um lead alheio nem pela URL direta nem pela API.
 
@@ -486,6 +489,16 @@ Integração com o Bitrix24 (descartada de vez em 18/11/2026), cobrança, integr
 11. **Bitrix24 descartado de vez.** Não haverá integração com esse CRM, nem no painel nem pelo painel. Apagar um lead no painel não mexe em nada no Bitrix. O que ainda existe de Bitrix (código do site, colunas `bitrix_*`, variáveis `BITRIX_*` e `TESTE7D_BITRIX_ATIVO`) fica como está por enquanto; a limpeza será decidida depois.
 12. **Limitação: planilha provisória do n8n.** A planilha "ady - Trial - cadastro Planilha" (Google Sheets, alimentada pelo n8n) é externa ao repositório e **não é apagada** quando um lead é apagado no painel. Os dados pessoais do lead apagado podem continuar lá; tirar de lá é manual (ou mudar o fluxo do n8n), fora deste projeto.
 13. **Ordem de implantação:** (1) rodar `db/migrations/20261118_super_admin.sql` no Postgres da VPS (Easypanel, banco "ady"), com o dono das tabelas, colando o arquivo inteiro no psql, e conferir os SELECTs do fim; (2) merge do PR `feat/super-admin-apagar-lead`; (3) deploy; (4) teste em produção com um lead cadastrado à mão ("Novo lead"), apagado pelo super admin. **Janela entre (1) e (3):** o código antigo ainda no ar não conhece `super_admin`, então o Rafael consegue fazer login mas recebe 403 em todas as páginas e APIs até o deploy (os outros usuários não são afetados; se um admin tentar mudar o papel dele na tela antiga, o trigger recusa e nada muda). Manter essa janela curta. A ordem inversa (deploy antes da migração) não tem janela: o código novo funciona igual ao antigo enquanto não existe super admin, e "Apagar lead" só aparece depois da migração.
+
+## 13.4 Decisões fechadas em 18/11/2026 (perfil gestor)
+
+1. **Papel `gestor`:** suporte + vendas em todos os leads. Vê lista, ficha, dados pessoais e link de ativação de todos; muda a etapa comercial de qualquer lead (com histórico), lê e escreve anotações em qualquer lead, marca reunião realizada ou não compareceu, vê e move todos no Pipeline, cadastra lead manual e vê os indicadores agregados (funil, origem, perfil, funil comercial com corte por responsável).
+2. **Não pode:** atribuir responsável, mesclar ou desfazer mescla, "Possíveis duplicados", exportar CSV, Usuários e auditoria, apagar lead.
+3. **Não é responsável por lead** (só vendas, admin e super admin). Lead manual criado por gestor entra em "Sem responsável"; pedir um responsável pela API é recusado.
+4. **Barra lateral do gestor:** Início, Leads, Pipeline, Reuniões para fechar, Funil (com o bloco de origem) e Perfil; "Novo lead" fica na tela de Leads. "Reuniões para fechar" entra porque o gestor marca reunião como o suporte. Sem Usuários, sem "Possíveis duplicados" e sem botões de exportar.
+5. **Tela de Usuários:** o seletor oferece "Gestor" (admin e super admin concedem); a linha do gestor tem selo e o texto do papel. A trava do último admin e a proteção do super admin não mudam (gestor não conta como admin).
+6. **Migração `db/migrations/20261119_perfil_gestor.sql`:** só amplia a CHECK de `painel_usuarios.papel`. Nenhum GRANT novo (o gestor só usa escritas que o `painel_app` já tem). Idempotente, com BEGIN/COMMIT no arquivo, sem metacomandos do psql e com SELECTs de conferência. Exige a migração do super admin antes.
+7. **Ordem de implantação:** a migração pode rodar **antes** do deploy, sem janela de risco: ela só alarga a CHECK, e o código antigo nunca grava `gestor`. Depois, merge do PR `feat/perfil-gestor` e deploy. Deploy antes da migração faria a tela oferecer "Gestor" e o banco recusar até a migração rodar. Atenção: rodar de novo `20261118_super_admin.sql` depois que existir um gestor falha na CHECK (e desfaz tudo, nada muda); nesse caso, rodar de novo `20261119_perfil_gestor.sql`.
 
 ## 13.2 Decisões fechadas em 04/11/2026 (cadastro manual de lead)
 

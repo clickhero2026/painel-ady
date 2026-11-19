@@ -63,6 +63,8 @@ export async function recriarBanco(urlDono: string): Promise<void> {
   // Roda duas vezes de propósito: tem de ser idempotente.
   await banco.query(ler("db/migrations/20261118_super_admin.sql"));
   await banco.query(ler("db/migrations/20261118_super_admin.sql"));
+  await banco.query(ler("db/migrations/20261119_perfil_gestor.sql"));
+  await banco.query(ler("db/migrations/20261119_perfil_gestor.sql"));
   await banco.end();
 }
 

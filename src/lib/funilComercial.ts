@@ -12,7 +12,7 @@ import { rotuloEtapa } from "./etapas";
 import { AMOSTRA_MINIMA, type FiltrosFunil } from "./filtrosFunil";
 import { CAMPAIGN, condicoes, mascararOrigem, MEDIUM, MINIMO_LEITURA, SOURCE, taxa } from "./funil";
 import { NOME_RESPONSAVEL } from "./leads";
-import { ehAdmin, type Papel } from "./papeis";
+import { temPapel, VEEM_O_RESPONSAVEL, type Papel } from "./papeis";
 import { celulasOcultas, completarOcultas } from "./perfil";
 import { Parametros } from "./sql";
 
@@ -41,7 +41,7 @@ import { Parametros } from "./sql";
  *
  * Papel "leitura": células de 1 a 4 leads ocultas (null) AQUI, no servidor,
  * com a proteção contra subtração do perfil (celulasOcultas). Cortes por
- * responsável só para admin e suporte.
+ * responsável só para admin, gestor e suporte.
  */
 
 const POS = (expr: string) =>
@@ -49,7 +49,7 @@ const POS = (expr: string) =>
 const ETAPA = `coalesce(e.etapa, '${ETAPA_INICIAL}')`;
 
 export function podeVerCorteResponsavel(papel: Papel): boolean {
-  return ehAdmin(papel) || papel === "suporte";
+  return temPapel(papel, VEEM_O_RESPONSAVEL);
 }
 
 // ── Tipos do resultado (null = oculto para o papel, ou sem dado) ──
@@ -107,7 +107,7 @@ export interface FunilComercial {
   cortes: {
     origem: CorteComercial;
     situacao: CorteComercial;
-    /** Só admin e suporte. */
+    /** Só admin, gestor e suporte. */
     responsavel?: CorteComercial;
   };
 }

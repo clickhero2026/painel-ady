@@ -94,7 +94,7 @@ describe("mensagens do lead manual", () => {
     );
   });
 
-  it("só admin (e super admin) e vendas cadastram lead", () => {
-    expect(PAPEIS.filter((p) => podeAcessar(p, "criarLead"))).toEqual(["super_admin", "admin", "vendas"]);
+  it("só admin (e super admin), gestor e vendas cadastram lead", () => {
+    expect(PAPEIS.filter((p) => podeAcessar(p, "criarLead"))).toEqual(["super_admin", "admin", "gestor", "vendas"]);
   });
 });

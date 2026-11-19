@@ -6,6 +6,7 @@ import {
   navegacaoDoPapel,
   PAPEIS,
   PAPEIS_ATRIBUIVEIS,
+  PAPEIS_RESPONSAVEL,
   podeAcessar,
   temPapel,
 } from "@/lib/papeis";
@@ -31,13 +32,13 @@ describe("papéis", () => {
 
   it("atribuir só admin; marcar reunião admin e suporte", () => {
     expect(PAPEIS.filter((p) => podeAcessar(p, "atribuir"))).toEqual(["super_admin", "admin"]);
-    expect(PAPEIS.filter((p) => podeAcessar(p, "marcarReuniao"))).toEqual(["super_admin", "admin", "suporte"]);
+    expect(PAPEIS.filter((p) => podeAcessar(p, "marcarReuniao"))).toEqual(["super_admin", "admin", "gestor", "suporte"]);
   });
 
   it("pipeline: admin, suporte e vendas veem; só admin e vendas mudam etapa; anotações para os três; mescla só admin", () => {
-    expect(PAPEIS.filter((p) => podeAcessar(p, "pipeline"))).toEqual(["super_admin", "admin", "suporte", "vendas"]);
-    expect(PAPEIS.filter((p) => podeAcessar(p, "mudarEtapa"))).toEqual(["super_admin", "admin", "vendas"]);
-    expect(PAPEIS.filter((p) => podeAcessar(p, "anotar"))).toEqual(["super_admin", "admin", "suporte", "vendas"]);
+    expect(PAPEIS.filter((p) => podeAcessar(p, "pipeline"))).toEqual(["super_admin", "admin", "gestor", "suporte", "vendas"]);
+    expect(PAPEIS.filter((p) => podeAcessar(p, "mudarEtapa"))).toEqual(["super_admin", "admin", "gestor", "vendas"]);
+    expect(PAPEIS.filter((p) => podeAcessar(p, "anotar"))).toEqual(["super_admin", "admin", "gestor", "suporte", "vendas"]);
     expect(PAPEIS.filter((p) => podeAcessar(p, "mesclar"))).toEqual(["super_admin", "admin"]);
   });
 
@@ -82,8 +83,10 @@ describe("super admin", () => {
       criarLead: ["admin", "vendas"],
       apagarLead: [],
     };
+    // O gestor (papel novo) fica de fora daqui: tem o próprio teste abaixo.
+    const antigos = PAPEIS_ATRIBUIVEIS.filter((p) => p !== "gestor");
     for (const [area, papeis] of Object.entries(antes)) {
-      expect(PAPEIS_ATRIBUIVEIS.filter((p) => podeAcessar(p, area as keyof typeof ACESSO_ROTAS)), area).toEqual(papeis);
+      expect(antigos.filter((p) => podeAcessar(p, area as keyof typeof ACESSO_ROTAS)), area).toEqual(papeis);
     }
   });
 
@@ -91,6 +94,28 @@ describe("super admin", () => {
     expect(PAPEIS.filter(ehAdmin)).toEqual(["super_admin", "admin"]);
     expect(PAPEIS.filter(ehSuperAdmin)).toEqual(["super_admin"]);
     expect(PAPEIS_ATRIBUIVEIS).not.toContain("super_admin");
+  });
+});
+
+describe("gestor", () => {
+  it("barra lateral: Início, Leads, Pipeline, Reuniões para fechar, Funil e Perfil; sem Duplicados e sem Usuários", () => {
+    expect(navegacaoDoPapel("gestor").map((i) => i.href)).toEqual([
+      "/", "/leads", "/pipeline", "/leads?visao=para_fechar", "/funil", "/perfil",
+    ]);
+  });
+
+  it("áreas: suporte + vendas em todos os leads; nada de atribuir, mesclar, exportar, usuários ou apagar", () => {
+    const areas = (Object.keys(ACESSO_ROTAS) as (keyof typeof ACESSO_ROTAS)[]).filter((a) => podeAcessar("gestor", a));
+    expect(areas.sort()).toEqual(
+      ["anotar", "criarLead", "funil", "inicio", "leads", "marcarReuniao", "mudarEtapa", "perfil", "pipeline"].sort(),
+    );
+    // Tudo o que suporte ou vendas pode, o gestor pode.
+    for (const area of Object.keys(ACESSO_ROTAS) as (keyof typeof ACESSO_ROTAS)[]) {
+      if (podeAcessar("suporte", area) || podeAcessar("vendas", area)) expect(podeAcessar("gestor", area), area).toBe(true);
+    }
+    expect(ehAdmin("gestor")).toBe(false);
+    expect(PAPEIS_RESPONSAVEL).not.toContain("gestor");
+    expect(PAPEIS_ATRIBUIVEIS).toContain("gestor");
   });
 });
 

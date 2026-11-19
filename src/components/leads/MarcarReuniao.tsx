@@ -17,7 +17,7 @@ const CONFIRMAR: Record<Desfecho, string> = {
 };
 
 /**
- * Suporte e admin: desfecho da reunião de um lead agendado, com
+ * Suporte, gestor e admin: desfecho da reunião de um lead agendado, com
  * confirmação antes de gravar, e o "desfazer" nas 24 horas seguintes. O
  * servidor confere tudo de novo (status, prazo e papel).
  */

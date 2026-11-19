@@ -7,7 +7,7 @@
  * gravado na sessão é só informativo.
  */
 
-export const PAPEIS = ["super_admin", "admin", "suporte", "vendas", "leitura"] as const;
+export const PAPEIS = ["super_admin", "admin", "gestor", "suporte", "vendas", "leitura"] as const;
 export type Papel = (typeof PAPEIS)[number];
 
 /**
@@ -16,12 +16,13 @@ export type Papel = (typeof PAPEIS)[number];
  * o define, e um trigger no banco impede o painel_app de concedê-lo,
  * retirá-lo ou desativá-lo.
  */
-export const PAPEIS_ATRIBUIVEIS = ["admin", "suporte", "vendas", "leitura"] as const satisfies readonly Papel[];
+export const PAPEIS_ATRIBUIVEIS = ["admin", "gestor", "suporte", "vendas", "leitura"] as const satisfies readonly Papel[];
 export type PapelAtribuivel = (typeof PAPEIS_ATRIBUIVEIS)[number];
 
 export const ROTULO_PAPEL: Record<Papel, string> = {
   super_admin: "Super admin",
   admin: "Admin",
+  gestor: "Gestor",
   suporte: "Suporte",
   vendas: "Vendas",
   leitura: "Leitura",
@@ -43,6 +44,21 @@ export function ehAdmin(papel: Papel): boolean {
   return papel === "admin" || papel === "super_admin";
 }
 
+/**
+ * Gestor: suporte + vendas aplicados a TODOS os leads (vê todos, muda a
+ * etapa de qualquer um, anota, marca reunião, cadastra lead manual). Não
+ * atribui responsável, não mescla, não exporta, não gerencia usuários e não
+ * apaga lead; também não pode ser responsável por lead (fora de
+ * PAPEIS_RESPONSAVEL). Lead que ele cadastra entra em "Sem responsável".
+ */
+export function ehGestor(papel: Papel): boolean {
+  return papel === "gestor";
+}
+
+/** Texto curto do papel gestor (tela de Usuários). */
+export const DESCRICAO_GESTOR =
+  "Gestor: vê todos os leads, muda a etapa de qualquer um, anota, marca reunião e cadastra lead. Não atribui responsável, não mescla, não exporta, não gerencia usuários e não é responsável por lead.";
+
 /** Só o super admin (hoje: apagar lead). */
 export function ehSuperAdmin(papel: Papel): boolean {
   return papel === "super_admin";
@@ -58,10 +74,15 @@ export function temPapel(papel: Papel, permitidos: readonly Papel[]): boolean {
   return permitidos.includes(papel) || (papel === "super_admin" && permitidos.includes("admin"));
 }
 
-/** Papéis que podem ser responsáveis por lead (SQL: `papel IN ${SQL_PAPEIS_RESPONSAVEL}`). */
+/** Papéis que podem ser responsáveis por lead (SQL: `papel IN ${SQL_PAPEIS_RESPONSAVEL}`). Gestor não. */
 export const PAPEIS_RESPONSAVEL = ["super_admin", "admin", "vendas"] as const satisfies readonly Papel[];
 export type PapelResponsavel = (typeof PAPEIS_RESPONSAVEL)[number];
 export const SQL_PAPEIS_RESPONSAVEL = `(${PAPEIS_RESPONSAVEL.map((p) => `'${p}'`).join(", ")})`;
+/**
+ * Quem vê o nome do responsável e filtra/corta por ele (lista, pipeline e
+ * funil comercial). Vendas não: só enxerga os seus.
+ */
+export const VEEM_O_RESPONSAVEL = ["admin", "gestor", "suporte"] as const satisfies readonly Papel[];
 /** Papéis que contam para a trava do "último admin ativo". */
 export const SQL_PAPEIS_ADMIN = "('super_admin', 'admin')";
 
@@ -75,9 +96,14 @@ export interface ItemNavegacao {
 /** Itens da barra lateral. Uma rota nova entra aqui e em `ACESSO_ROTAS`. */
 export const NAVEGACAO: readonly ItemNavegacao[] = [
   { href: "/", rotulo: "Início", icone: "inicio", papeis: PAPEIS },
-  { href: "/leads", rotulo: "Leads", icone: "leads", papeis: ["admin", "suporte", "vendas"] },
-  { href: "/pipeline", rotulo: "Pipeline", icone: "pipeline", papeis: ["admin", "suporte", "vendas"] },
-  { href: "/leads?visao=para_fechar", rotulo: "Reuniões para fechar", icone: "reunioes", papeis: ["admin", "suporte"] },
+  { href: "/leads", rotulo: "Leads", icone: "leads", papeis: ["admin", "gestor", "suporte", "vendas"] },
+  { href: "/pipeline", rotulo: "Pipeline", icone: "pipeline", papeis: ["admin", "gestor", "suporte", "vendas"] },
+  {
+    href: "/leads?visao=para_fechar",
+    rotulo: "Reuniões para fechar",
+    icone: "reunioes",
+    papeis: ["admin", "gestor", "suporte"],
+  },
   { href: "/funil", rotulo: "Funil", icone: "funil", papeis: PAPEIS },
   { href: "/perfil", rotulo: "Perfil", icone: "perfil", papeis: PAPEIS },
   { href: "/duplicados", rotulo: "Possíveis duplicados", icone: "duplicados", papeis: ["admin"] },
@@ -91,8 +117,8 @@ export function navegacaoDoPapel(papel: Papel): ItemNavegacao[] {
 /** Quem pode abrir cada área (checado no servidor, inclusive pela URL direta). */
 export const ACESSO_ROTAS = {
   inicio: PAPEIS,
-  /** Lista, ficha e link de ativação. Vendas só enxerga os seus (ver leads.ts). */
-  leads: ["admin", "suporte", "vendas"],
+  /** Lista, ficha e link de ativação. Vendas só enxerga os seus (ver leads.ts); gestor, todos. */
+  leads: ["admin", "gestor", "suporte", "vendas"],
   /** Indicadores agregados (sem dados pessoais): todos os papéis. */
   funil: PAPEIS,
   /** CSV da tabela comparativa do funil. */
@@ -105,17 +131,20 @@ export const ACESSO_ROTAS = {
   /** Atribuir, trocar ou remover o responsável por um lead (na ficha e em lote). */
   atribuir: ["admin"],
   /** Marcar reunião realizada ou não compareceu, e desfazer; visão "Reuniões para fechar". */
-  marcarReuniao: ["admin", "suporte"],
+  marcarReuniao: ["admin", "gestor", "suporte"],
   /** Tela Pipeline (quadro e lista). Suporte só lê; vendas só os seus (leads.ts). */
-  pipeline: ["admin", "suporte", "vendas"],
-  /** Mudar a etapa comercial. Admin em qualquer lead; vendas só nos seus. Suporte não. */
-  mudarEtapa: ["admin", "vendas"],
+  pipeline: ["admin", "gestor", "suporte", "vendas"],
+  /** Mudar a etapa comercial. Admin e gestor em qualquer lead; vendas só nos seus. Suporte não. */
+  mudarEtapa: ["admin", "gestor", "vendas"],
   /** Ler e escrever anotações internas (vendas só nos seus). */
-  anotar: ["admin", "suporte", "vendas"],
+  anotar: ["admin", "gestor", "suporte", "vendas"],
   /** Mesclar e desfazer mescla; tela "Possíveis duplicados". */
   mesclar: ["admin"],
-  /** Cadastrar lead à mão ("Novo lead", POST /api/leads). Vendas fica como responsável (leadManual.ts). */
-  criarLead: ["admin", "vendas"],
+  /**
+   * Cadastrar lead à mão ("Novo lead", POST /api/leads). Vendas fica como
+   * responsável; gestor não escolhe e o lead entra sem responsável (leadManual.ts).
+   */
+  criarLead: ["admin", "gestor", "vendas"],
   /** Apagar lead (DELETE /api/leads/:id). SÓ o super admin; admin comum não. */
   apagarLead: ["super_admin"],
 } as const satisfies Record<string, readonly Papel[]>;

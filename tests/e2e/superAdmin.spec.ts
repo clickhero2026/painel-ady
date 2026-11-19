@@ -143,10 +143,10 @@ for (const largura of [360, 1280] as const) {
     await expect(linha.getByText("Super admin", { exact: true })).toBeVisible();
     await expect(linha.getByRole("combobox")).toHaveCount(0);
     await expect(linha.getByRole("button")).toHaveCount(0);
-    await expect(page.getByLabel("Papel", { exact: true }).locator("option")).toHaveText(["Admin", "Suporte", "Vendas", "Leitura"]);
+    await expect(page.getByLabel("Papel", { exact: true }).locator("option")).toHaveText(["Admin", "Gestor", "Suporte", "Vendas", "Leitura"]);
     await expect(
       page.getByRole("listitem").filter({ hasText: "Ana Admin" }).getByLabel("Papel de Ana Admin").locator("option"),
-    ).toHaveText(["Admin", "Suporte", "Vendas", "Leitura"]);
+    ).toHaveText(["Admin", "Gestor", "Suporte", "Vendas", "Leitura"]);
     await page.screenshot({ path: `docs/capturas/usuarios-super-admin-${largura}.png`, fullPage: true });
 
     // Com o super admin ativo, a Ana deixa de ser a "última admin" e pode ser rebaixada

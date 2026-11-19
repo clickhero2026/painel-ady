@@ -6,7 +6,7 @@ import { listaDoPipeline, quadroDoPipeline } from "@/lib/pipeline";
 
 /**
  * GET /api/pipeline — o quadro (padrão) ou a lista (?modo=lista), com os
- * mesmos filtros da tela. Vendas só os seus; admin e suporte todos.
+ * mesmos filtros da tela. Vendas só os seus; admin, gestor e suporte todos.
  */
 export async function GET(request: NextRequest) {
   const { usuario, erro } = await usuarioDaApi(ACESSO_ROTAS.pipeline);

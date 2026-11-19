@@ -17,9 +17,15 @@ const ORDEM: CampoDoLead[] = ["nome", "whatsapp", "email", "anotacao", "responsa
 /**
  * Cadastro manual de lead (/leads/novo). Quem valida é o servidor
  * (leadManual.ts): aqui só mostramos os erros de cada campo que ele
- * devolve. Admin escolhe o responsável (padrão: nenhum); vendas fica com o lead.
+ * devolve. Admin escolhe o responsável (padrão: nenhum); vendas fica com o
+ * lead; gestor não escolhe e o lead vai para a fila "Sem responsável".
  */
-export function FormularioNovoLead({ opcoes }: { /** Só admin; null = vendas (o lead fica com quem cadastra). */ opcoes: OpcaoResponsavel[] | null }) {
+export function FormularioNovoLead({
+  opcoes,
+}: {
+  /** Lista = admin escolhe; "voce" = vendas (fica com quem cadastra); "fila" = gestor (sem responsável). */
+  opcoes: OpcaoResponsavel[] | "voce" | "fila";
+}) {
   const router = useRouter();
   const id = useId();
   const [valores, setValores] = useState({ nome: "", whatsapp: "", email: "", anotacao: "", responsavel: "" });
@@ -59,7 +65,7 @@ export function FormularioNovoLead({ opcoes }: { /** Só admin; null = vendas (o
       whatsapp: valores.whatsapp,
       email: valores.email,
       anotacao: valores.anotacao || null,
-      ...(opcoes ? { responsavelId: valores.responsavel || null } : {}),
+      ...(Array.isArray(opcoes) ? { responsavelId: valores.responsavel || null } : {}),
       via: "tela",
     });
     if (r.ok && UUID.test(r.dados.id)) {
@@ -180,7 +186,7 @@ export function FormularioNovoLead({ opcoes }: { /** Só admin; null = vendas (o
         )}
       </div>
 
-      {opcoes ? (
+      {Array.isArray(opcoes) ? (
         <div>
           <label htmlFor={`${id}-responsavel`} className={rotulo}>
             Responsável
@@ -208,6 +214,10 @@ export function FormularioNovoLead({ opcoes }: { /** Só admin; null = vendas (o
           </p>
           {erro("responsavel")}
         </div>
+      ) : opcoes === "fila" ? (
+        <p className="rounded-lg bg-superficie px-4 py-3 text-sm">
+          O lead entra sem responsável, na fila “Sem responsável”. Um admin escolhe quem atende.
+        </p>
       ) : (
         <p className="rounded-lg bg-superficie px-4 py-3 text-sm">O lead fica com você.</p>
       )}

@@ -11,7 +11,7 @@ const corpo = z.object({
   motivoTexto: z.string().max(5000).nullish(),
 });
 
-/** GET /api/leads/:id/etapa — etapa comercial atual e histórico. Admin, suporte e vendas (só os seus); 404 fora do escopo. */
+/** GET /api/leads/:id/etapa — etapa comercial atual e histórico. Admin, gestor, suporte e vendas (só os seus); 404 fora do escopo. */
 export async function GET(_: Request, { params }: RouteContext<"/api/leads/[id]/etapa">) {
   const { usuario, erro } = await usuarioDaApi(ACESSO_ROTAS.leads);
   if (erro) return erro;
@@ -22,7 +22,7 @@ export async function GET(_: Request, { params }: RouteContext<"/api/leads/[id]/
 /**
  * PUT /api/leads/:id/etapa — muda a etapa comercial. Condicional: `esperada`
  * é a etapa que a pessoa via; se mudou antes, 409 com a mensagem. Perdido
- * exige motivo (e texto, no motivo "Outro"). Admin em qualquer lead;
+ * exige motivo (e texto, no motivo "Outro"). Admin e gestor em qualquer lead;
  * vendas só nos seus (404 nos outros); suporte e leitura 403.
  */
 export async function PUT(request: Request, { params }: RouteContext<"/api/leads/[id]/etapa">) {

@@ -7,13 +7,13 @@ import { ETAPAS_PARADAS } from "./etapas";
 import { POR_PAGINA, type FiltrosLeads, type Ordem } from "./filtrosLeads";
 import { preencherMensagem, primeiroNome } from "./formatos";
 import { LEAD_MANUAL } from "./funil";
-import { ehAdmin, SQL_PAPEIS_RESPONSAVEL, type Papel } from "./papeis";
+import { ehAdmin, podeAcessar, SQL_PAPEIS_RESPONSAVEL, type Papel } from "./papeis";
 import { Parametros } from "./sql";
 
 /**
  * ÚNICO ponto de acesso aos leads (teste7d_inscricoes). Toda consulta passa
  * por `leadsVisiveis`, que aplica a regra da seção 7 no SQL:
- *   - admin e suporte: todos os leads;
+ *   - admin, gestor e suporte: todos os leads;
  *   - vendas: só os leads em que é o responsável (painel_lead_responsavel);
  *   - leitura: nenhum lead individual (lança SemAcessoALeads).
  * E, para todos, só leads que NÃO foram mesclados em outro (escopo.ts).
@@ -45,6 +45,7 @@ export function leadsVisiveis(usuario: QuemConsulta, p: Parametros): string {
   switch (usuario.papel) {
     case "super_admin":
     case "admin":
+    case "gestor":
     case "suporte":
       return NAO_MESCLADO;
     case "vendas":
@@ -62,7 +63,7 @@ export const NA_ETAPA_DESDE = "coalesce(e.atualizado_em, i.created_at)";
 export const ORDEM_ETAPA_COMERCIAL = `array_position(ARRAY[${ETAPAS_COMERCIAIS.map((x) => `'${x}'`).join(",")}], ${ETAPA_ATUAL})`;
 
 export function podeVerLeads(papel: Papel): boolean {
-  return ehAdmin(papel) || papel === "suporte" || papel === "vendas";
+  return podeAcessar(papel, "leads");
 }
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -171,7 +172,7 @@ function condicoes(usuario: QuemConsulta, f: FiltrosLeads, p: Parametros): strin
       where.push(SEM_RESPONSAVEL);
       break;
     case "para_fechar":
-      if (!ehAdmin(usuario.papel) && usuario.papel !== "suporte") throw new SemAcessoALeads();
+      if (!podeAcessar(usuario.papel, "marcarReuniao")) throw new SemAcessoALeads();
       where.push(PARA_FECHAR);
       break;
   }
@@ -401,7 +402,7 @@ export interface ContadoresDoMenu {
 }
 
 export async function contadoresDoMenu(papel: Papel): Promise<ContadoresDoMenu> {
-  const contar = [ehAdmin(papel) && "semResponsavel", (ehAdmin(papel) || papel === "suporte") && "paraFechar"].filter(
+  const contar = [podeAcessar(papel, "atribuir") && "semResponsavel", podeAcessar(papel, "marcarReuniao") && "paraFechar"].filter(
     Boolean,
   ) as (keyof ContadoresDoMenu)[];
   if (contar.length === 0) return {};
